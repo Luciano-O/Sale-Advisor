@@ -76,20 +76,13 @@ function sortCandidates(candidates: OfferCandidate[]): OfferCandidate[] {
   });
 }
 
-function isCompleteCandidate(candidate: OfferCandidate): candidate is OfferCandidate & {
-  product: NonNullable<OfferCandidate["product"]>;
-  price: NonNullable<OfferCandidate["price"]>;
-  priceBucketInCents: number;
-  domain: string;
-} {
-  return Boolean(candidate.product && candidate.price && candidate.priceBucketInCents !== null && candidate.domain);
-}
-
-function findMatchingOffer(offers: MutableOffer[], candidate: CompleteOfferCandidate, windowMs: number): MutableOffer | null {
-  return (
-    offers.find((offer) => isInsideWindow(offer, candidate, windowMs) && matchesByNormalizedUrl(offer, candidate)) ??
-    offers.find((offer) => isInsideWindow(offer, candidate, windowMs) && matchesByFallbackSignals(offer, candidate)) ??
-    null
+function isCompleteCandidate(candidate: OfferCandidate): candidate is CompleteOfferCandidate {
+  return Boolean(
+    candidate.product &&
+      candidate.price &&
+      candidate.priceBucketInCents !== null &&
+      candidate.domain &&
+      candidate.store
   );
 }
 
@@ -98,7 +91,28 @@ type CompleteOfferCandidate = OfferCandidate & {
   price: NonNullable<OfferCandidate["price"]>;
   priceBucketInCents: number;
   domain: string;
+  store: NonNullable<OfferCandidate["store"]>;
 };
+
+function findMatchingOffer(offers: MutableOffer[], candidate: CompleteOfferCandidate, windowMs: number): MutableOffer | null {
+  return (
+    offers.find((offer) => isInsideWindow(offer, candidate, windowMs) && matchesByStoreProductId(offer, candidate)) ??
+    offers.find((offer) => isInsideWindow(offer, candidate, windowMs) && matchesByNormalizedUrl(offer, candidate)) ??
+    offers.find((offer) => isInsideWindow(offer, candidate, windowMs) && matchesByFallbackSignals(offer, candidate)) ??
+    null
+  );
+}
+
+function matchesByStoreProductId(offer: MutableOffer, candidate: CompleteOfferCandidate): boolean {
+  return Boolean(
+    offer.storeProductId &&
+      candidate.storeProductId &&
+      offer.domain === candidate.domain &&
+      offer.storeProductId === candidate.storeProductId &&
+      offer.product.id === candidate.product.id &&
+      offer.price.amountInCents === candidate.price.amountInCents
+  );
+}
 
 function matchesByNormalizedUrl(offer: MutableOffer, candidate: CompleteOfferCandidate): boolean {
   return Boolean(
@@ -133,6 +147,8 @@ function createOffer(candidate: CompleteOfferCandidate, index: number): MutableO
     price: candidate.price,
     priceBucketInCents: candidate.priceBucketInCents,
     normalizedUrl: candidate.normalizedUrl?.normalizedUrl ?? null,
+    store: candidate.store,
+    storeProductId: candidate.storeProductId,
     domain: candidate.domain,
     firstSeenAt: candidate.capturedAt,
     lastSeenAt: candidate.capturedAt,

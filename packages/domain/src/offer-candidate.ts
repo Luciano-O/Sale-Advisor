@@ -1,6 +1,7 @@
 import { identifyGpuProduct } from "./gpu.js";
 import { calculatePriceBucket } from "./price-bucket.js";
 import { parsePrice } from "./price.js";
+import { normalizeStore, normalizeStoreDomain } from "./store.js";
 import type { BuildOfferCandidateInput, OfferCandidate } from "./types.js";
 import { normalizeUrl } from "./url.js";
 
@@ -10,14 +11,17 @@ export function buildOfferCandidate(input: BuildOfferCandidateInput): OfferCandi
   const sourceUrl = input.url ?? extractFirstUrl(input.rawText);
   const price = parsePrice(input.rawText);
   const normalizedUrl = sourceUrl ? normalizeUrl(sourceUrl) : null;
-  const storeDomain = input.storeDomain ? normalizeDomain(input.storeDomain) : undefined;
-  const domain = normalizedUrl?.domain ?? storeDomain ?? null;
+  const storeDomain = input.storeDomain ? normalizeStoreDomain(input.storeDomain) : undefined;
+  const store = normalizedUrl || storeDomain ? normalizeStore({ normalizedUrl, ...(storeDomain ? { storeDomain } : {}) }) : null;
+  const domain = store?.domain ?? null;
 
   return {
     rawText: input.rawText,
     capturedAt: new Date(input.capturedAt).toISOString(),
     sourceUrl,
     normalizedUrl,
+    store,
+    storeProductId: store?.storeProductId ?? null,
     domain,
     product: identifyGpuProduct(input.rawText),
     price,
@@ -32,8 +36,4 @@ export function buildOfferCandidate(input: BuildOfferCandidateInput): OfferCandi
 function extractFirstUrl(text: string): string | null {
   const match = text.match(URL_PATTERN);
   return match?.[0] ?? null;
-}
-
-function normalizeDomain(domain: string): string {
-  return domain.trim().toLowerCase();
 }

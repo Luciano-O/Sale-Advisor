@@ -4,6 +4,15 @@ export type ProductCondition = "new" | "used" | "open_box" | "unknown";
 
 export type GpuVendor = "NVIDIA" | "AMD";
 
+export type StoreProductIdSource =
+  | "query:sku"
+  | "query:productId"
+  | "query:produtoId"
+  | "query:itemId"
+  | "query:id"
+  | "path:numeric-id"
+  | "none";
+
 export interface ParsedPrice {
   amountInCents: number;
   currency: "BRL";
@@ -17,6 +26,23 @@ export interface NormalizedUrl {
   domain: string;
   path: string;
   removedTrackingParams: string[];
+}
+
+export interface NormalizedStore {
+  domain: string;
+  adapterName: string;
+  storeProductId: string | null;
+  storeProductIdSource: StoreProductIdSource;
+}
+
+export interface StoreAdapter {
+  name: string;
+  domain: string;
+}
+
+export interface NormalizeStoreInput {
+  normalizedUrl?: NormalizedUrl | null;
+  storeDomain?: string;
 }
 
 export interface CanonicalGpuProduct {
@@ -39,6 +65,8 @@ export interface OfferCandidate {
   capturedAt: string;
   sourceUrl: string | null;
   normalizedUrl: NormalizedUrl | null;
+  store: NormalizedStore | null;
+  storeProductId: string | null;
   domain: string | null;
   product: CanonicalGpuProduct | null;
   price: ParsedPrice | null;
@@ -55,6 +83,8 @@ export interface ConsolidatedOffer {
   price: ParsedPrice;
   priceBucketInCents: number;
   normalizedUrl: string | null;
+  store: NormalizedStore;
+  storeProductId: string | null;
   domain: string;
   firstSeenAt: string;
   lastSeenAt: string;

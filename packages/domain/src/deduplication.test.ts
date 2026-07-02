@@ -5,6 +5,60 @@ import { deduplicateOfferCandidates } from "./deduplication.js";
 import type { OfferCandidate } from "./types.js";
 
 describe("deduplicateOfferCandidates", () => {
+
+  it("prioritizes domain, store product id and price over different normalized URLs", () => {
+    const result = deduplicateOfferCandidates([
+      candidate({
+        rawMessageId: "raw-store-1",
+        rawText: "RTX 4060 por R$ 1.899,00 https://loja-a.example.br/produto/rtx-4060?sku=RTX4060-8GB&utm_source=tg",
+        capturedAt: "2026-07-02T10:00:00.000Z"
+      }),
+      candidate({
+        rawMessageId: "raw-store-2",
+        rawText: "RTX 4060 por R$ 1.899,00 https://loja-a.example.br/oferta/especial?sku=RTX4060-8GB&fbclid=abc",
+        capturedAt: "2026-07-02T11:00:00.000Z"
+      })
+    ]);
+
+    expect(result.offers).toHaveLength(1);
+    expect(result.offers[0]?.storeProductId).toBe("RTX4060-8GB");
+    expect(result.offers[0]?.mentionCount).toBe(2);
+  });
+
+  it("creates a new offer for the same store product id when price differs", () => {
+    const result = deduplicateOfferCandidates([
+      candidate({
+        rawMessageId: "raw-store-price-1",
+        rawText: "RX 7600 por R$ 1.499,00 https://loja-b.example.br/item?productId=RX7600-1",
+        capturedAt: "2026-07-02T10:00:00.000Z"
+      }),
+      candidate({
+        rawMessageId: "raw-store-price-2",
+        rawText: "RX 7600 por R$ 1.549,00 https://loja-b.example.br/item?productId=RX7600-1",
+        capturedAt: "2026-07-02T11:00:00.000Z"
+      })
+    ]);
+
+    expect(result.offers).toHaveLength(2);
+  });
+
+  it("does not consolidate different products with the same store product id", () => {
+    const result = deduplicateOfferCandidates([
+      candidate({
+        rawMessageId: "raw-store-product-1",
+        rawText: "RTX 4060 por R$ 1.899,00 https://loja-b.example.br/item?productId=SAME-ID",
+        capturedAt: "2026-07-02T10:00:00.000Z"
+      }),
+      candidate({
+        rawMessageId: "raw-store-product-2",
+        rawText: "RTX 4070 por R$ 1.899,00 https://loja-b.example.br/item?productId=SAME-ID",
+        capturedAt: "2026-07-02T11:00:00.000Z"
+      })
+    ]);
+
+    expect(result.offers).toHaveLength(2);
+  });
+
   it("consolidates two mentions with the same normalized URL and price within 48 hours", () => {
     const result = deduplicateOfferCandidates([
       candidate({

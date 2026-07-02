@@ -17,6 +17,23 @@ describe("buildOfferCandidate", () => {
     expect(candidate.priceBucketInCents).toBe(195000);
   });
 
+
+  it("fills normalized store and store product id from URL", () => {
+    const candidate = buildOfferCandidate({
+      rawText: "RTX 4060 por R$ 1.899,00 https://www.loja-a.example.br/produto?sku=RTX4060-8GB&utm_source=tg",
+      capturedAt: "2026-07-02T12:00:00.000Z"
+    });
+
+    expect(candidate.domain).toBe("loja-a.example.br");
+    expect(candidate.store).toMatchObject({
+      domain: "loja-a.example.br",
+      adapterName: "loja-a",
+      storeProductId: "RTX4060-8GB",
+      storeProductIdSource: "query:sku"
+    });
+    expect(candidate.storeProductId).toBe("RTX4060-8GB");
+  });
+
   it("supports partial messages without breaking the pipeline", () => {
     const candidate = buildOfferCandidate({
       rawText: "Oferta chegando no canal",

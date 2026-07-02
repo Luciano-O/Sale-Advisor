@@ -8,11 +8,11 @@ describe("processRawMessages", () => {
     const result = processRawMessages([
       rawMessage({
         id: "fixture-1",
-        text: "RTX 4060 por R$ 1.899,00 https://loja.test/gpu?sku=4060&utm_source=tg"
+        text: "RTX 4060 por R$ 1.899,00 https://loja-a.example.br/gpu?sku=4060&utm_source=tg"
       }),
       rawMessage({
         id: "fixture-2",
-        text: "RTX 4060 por R$ 1.899,00 https://loja.test/gpu?sku=4060&fbclid=abc",
+        text: "RTX 4060 por R$ 1.899,00 https://loja-a.example.br/oferta/4060?sku=4060&fbclid=abc",
         capturedAt: "2026-07-02T11:00:00.000Z"
       })
     ]);
@@ -20,6 +20,26 @@ describe("processRawMessages", () => {
     expect(result.offers).toHaveLength(1);
     expect(result.offerMentions).toHaveLength(2);
     expect(result.offers[0]?.mentionCount).toBe(2);
+  });
+
+
+  it("preserves normalized store data in offers and mentions", () => {
+    const result = processRawMessages([
+      rawMessage({
+        id: "store-1",
+        text: "RTX 4060 por R$ 1.899,00 https://loja-a.example.br/gpu?sku=4060&utm_source=tg"
+      }),
+      rawMessage({
+        id: "store-2",
+        text: "RTX 4060 por R$ 1.899,00 https://loja-a.example.br/oferta/4060?sku=4060&fbclid=abc",
+        capturedAt: "2026-07-02T11:00:00.000Z"
+      })
+    ]);
+
+    expect(result.offers[0]?.storeProductId).toBe("4060");
+    expect(result.offers[0]?.store.domain).toBe("loja-a.example.br");
+    expect(result.offerMentions[0]?.candidate.storeProductId).toBe("4060");
+    expect(result.offerMentions[0]?.candidate.store?.adapterName).toBe("loja-a");
   });
 
   it("is deterministic for the same input", () => {
@@ -58,7 +78,7 @@ function rawMessage(overrides: Partial<RawFixtureMessage>): RawFixtureMessage {
   return {
     id: "fixture-1",
     sourceName: "Canal Teste",
-    text: "RTX 4060 por R$ 1.899,00 https://loja.test/gpu",
+    text: "RTX 4060 por R$ 1.899,00 https://loja-a.example.br/gpu?sku=4060",
     capturedAt: "2026-07-02T10:00:00.000Z",
     ...overrides
   };
