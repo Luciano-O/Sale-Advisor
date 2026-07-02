@@ -1,0 +1,26 @@
+[
+  {
+    "id": "fixture-raw-001",
+    "sourceName": "Canal Hardware Promo",
+    "text": "RTX 4060 8GB por R$ 1.899,00 no Pix https://loja.test/gpu?sku=4060&utm_source=telegram",
+    "capturedAt": "2026-07-02T10:00:00.000Z"
+  },
+  {
+    "id": "fixture-raw-002",
+    "sourceName": "Canal Hardware Promo",
+    "text": "RTX 4060 saindo por R$ 1.899,00 https://loja.test/gpu?fbclid=abc&sku=4060",
+    "capturedAt": "2026-07-02T11:15:00.000Z"
+  },
+  {
+    "id": "fixture-raw-003",
+    "sourceName": "Achados GPU",
+    "text": "RX 7600 por R$ 1.499,00 no pix https://shop.test/radeon/rx7600?utm_campaign=alerta",
+    "capturedAt": "2026-07-02T12:00:00.000Z"
+  },
+  {
+    "id": "fixture-raw-004",
+    "sourceName": "Achados GPU",
+    "text": "Oferta chegando em breve no canal, fiquem atentos",
+    "capturedAt": "2026-07-02T13:00:00.000Z"
+  }
+]

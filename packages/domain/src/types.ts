@@ -29,6 +29,9 @@ export interface BuildOfferCandidateInput {
   rawText: string;
   capturedAt: Date | string;
   url?: string;
+  rawMessageId?: string;
+  sourceName?: string;
+  storeDomain?: string;
 }
 
 export interface OfferCandidate {
@@ -36,8 +39,42 @@ export interface OfferCandidate {
   capturedAt: string;
   sourceUrl: string | null;
   normalizedUrl: NormalizedUrl | null;
+  domain: string | null;
   product: CanonicalGpuProduct | null;
   price: ParsedPrice | null;
   priceBucketInCents: number | null;
   condition: ProductCondition;
+  rawMessageId?: string;
+  sourceName?: string;
+  storeDomain?: string;
+}
+
+export interface ConsolidatedOffer {
+  id: string;
+  product: CanonicalGpuProduct;
+  price: ParsedPrice;
+  priceBucketInCents: number;
+  normalizedUrl: string | null;
+  domain: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  mentionCount: number;
+}
+
+export interface OfferMention {
+  rawMessageId: string | null;
+  rawText: string;
+  sourceName: string | null;
+  capturedAt: string;
+  offerId: string;
+  candidate: OfferCandidate;
+}
+
+export interface DeduplicationResult {
+  offers: ConsolidatedOffer[];
+  offerMentions: OfferMention[];
+}
+
+export interface DeduplicationOptions {
+  windowMs?: number;
 }

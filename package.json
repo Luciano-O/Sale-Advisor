@@ -4,17 +4,18 @@
   "version": "0.1.0",
   "description": "Monorepo para app de monitoramento de promocoes e alertas de ofertas.",
   "scripts": {
-    "build": "pnpm -r --if-present build",
-    "dev": "pnpm -r --parallel --if-present dev",
-    "lint": "pnpm -r --if-present lint",
-    "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "build": "corepack pnpm -r --if-present build",
+    "dev": "corepack pnpm -r --parallel --if-present dev",
+    "lint": "corepack pnpm -r --if-present lint",
+    "test": "corepack pnpm -r --if-present test",
+    "typecheck": "corepack pnpm -r --if-present typecheck"
   },
   "engines": {
     "node": ">=20"
   },
   "packageManager": "pnpm@10.0.0",
   "devDependencies": {
+    "@types/node": "^26.1.0",
     "typescript": "^5.5.4",
     "vitest": "^2.1.1"
   }

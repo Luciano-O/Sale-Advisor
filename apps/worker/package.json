@@ -3,5 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "description": "Workers de coleta, parsing, deduplicacao, scoring e notificacoes.",
-  "scripts": {}
+  "type": "module",
+  "scripts": {
+    "build": "corepack pnpm --filter @sale-advisor/domain build && tsc -p tsconfig.json",
+    "process:fixtures": "corepack pnpm build && node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "corepack pnpm --filter @sale-advisor/domain build && tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@sale-advisor/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@sale-advisor/config": "workspace:*"
+  }
 }

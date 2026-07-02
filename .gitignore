@@ -26,3 +26,6 @@ yarn-error.log*
 Thumbs.db
 .idea/
 .vscode/
+
+# Worker local output
+apps/worker/output/
