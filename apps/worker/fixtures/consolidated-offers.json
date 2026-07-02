@@ -1,0 +1,517 @@
+{
+  "offers": [
+    {
+      "id": "normal-history-1",
+      "product": {
+        "id": "nvidia-rtx-4060",
+        "vendor": "NVIDIA",
+        "model": "RTX 4060"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-normal.example.br/produto/normal-history-1?sku=NVIDIA-RTX-4060-HISTORY-1",
+      "store": {
+        "domain": "loja-normal.example.br",
+        "adapterName": "loja-normal",
+        "storeProductId": "NVIDIA-RTX-4060-HISTORY-1",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "NVIDIA-RTX-4060-HISTORY-1",
+      "domain": "loja-normal.example.br",
+      "firstSeenAt": "2026-06-20T10:00:00.000Z",
+      "lastSeenAt": "2026-06-20T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "normal-history-2",
+      "product": {
+        "id": "nvidia-rtx-4060",
+        "vendor": "NVIDIA",
+        "model": "RTX 4060"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-normal.example.br/produto/normal-history-2?sku=NVIDIA-RTX-4060-HISTORY-2",
+      "store": {
+        "domain": "loja-normal.example.br",
+        "adapterName": "loja-normal",
+        "storeProductId": "NVIDIA-RTX-4060-HISTORY-2",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "NVIDIA-RTX-4060-HISTORY-2",
+      "domain": "loja-normal.example.br",
+      "firstSeenAt": "2026-06-25T10:00:00.000Z",
+      "lastSeenAt": "2026-06-25T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "normal-history-3",
+      "product": {
+        "id": "nvidia-rtx-4060",
+        "vendor": "NVIDIA",
+        "model": "RTX 4060"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-normal.example.br/produto/normal-history-3?sku=NVIDIA-RTX-4060-HISTORY-3",
+      "store": {
+        "domain": "loja-normal.example.br",
+        "adapterName": "loja-normal",
+        "storeProductId": "NVIDIA-RTX-4060-HISTORY-3",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "NVIDIA-RTX-4060-HISTORY-3",
+      "domain": "loja-normal.example.br",
+      "firstSeenAt": "2026-06-30T10:00:00.000Z",
+      "lastSeenAt": "2026-06-30T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "normal-current",
+      "product": {
+        "id": "nvidia-rtx-4060",
+        "vendor": "NVIDIA",
+        "model": "RTX 4060"
+      },
+      "price": {
+        "amountInCents": 191000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 1.910,00"
+      },
+      "priceBucketInCents": 191000,
+      "normalizedUrl": "https://loja-normal.example.br/produto/normal-current?sku=NVIDIA-RTX-4060-CURRENT",
+      "store": {
+        "domain": "loja-normal.example.br",
+        "adapterName": "loja-normal",
+        "storeProductId": "NVIDIA-RTX-4060-CURRENT",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "NVIDIA-RTX-4060-CURRENT",
+      "domain": "loja-normal.example.br",
+      "firstSeenAt": "2026-07-02T10:00:00.000Z",
+      "lastSeenAt": "2026-07-02T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "boa-history-1",
+      "product": {
+        "id": "amd-rx-7600",
+        "vendor": "AMD",
+        "model": "RX 7600"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-boa.example.br/produto/boa-history-1?sku=AMD-RX-7600-HISTORY-1",
+      "store": {
+        "domain": "loja-boa.example.br",
+        "adapterName": "loja-boa",
+        "storeProductId": "AMD-RX-7600-HISTORY-1",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "AMD-RX-7600-HISTORY-1",
+      "domain": "loja-boa.example.br",
+      "firstSeenAt": "2026-06-20T10:00:00.000Z",
+      "lastSeenAt": "2026-06-20T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "boa-history-2",
+      "product": {
+        "id": "amd-rx-7600",
+        "vendor": "AMD",
+        "model": "RX 7600"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-boa.example.br/produto/boa-history-2?sku=AMD-RX-7600-HISTORY-2",
+      "store": {
+        "domain": "loja-boa.example.br",
+        "adapterName": "loja-boa",
+        "storeProductId": "AMD-RX-7600-HISTORY-2",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "AMD-RX-7600-HISTORY-2",
+      "domain": "loja-boa.example.br",
+      "firstSeenAt": "2026-06-25T10:00:00.000Z",
+      "lastSeenAt": "2026-06-25T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "boa-history-3",
+      "product": {
+        "id": "amd-rx-7600",
+        "vendor": "AMD",
+        "model": "RX 7600"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-boa.example.br/produto/boa-history-3?sku=AMD-RX-7600-HISTORY-3",
+      "store": {
+        "domain": "loja-boa.example.br",
+        "adapterName": "loja-boa",
+        "storeProductId": "AMD-RX-7600-HISTORY-3",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "AMD-RX-7600-HISTORY-3",
+      "domain": "loja-boa.example.br",
+      "firstSeenAt": "2026-06-30T10:00:00.000Z",
+      "lastSeenAt": "2026-06-30T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "boa-current",
+      "product": {
+        "id": "amd-rx-7600",
+        "vendor": "AMD",
+        "model": "RX 7600"
+      },
+      "price": {
+        "amountInCents": 190000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 1.900,00"
+      },
+      "priceBucketInCents": 190000,
+      "normalizedUrl": "https://loja-boa.example.br/produto/boa-current?sku=AMD-RX-7600-CURRENT",
+      "store": {
+        "domain": "loja-boa.example.br",
+        "adapterName": "loja-boa",
+        "storeProductId": "AMD-RX-7600-CURRENT",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "AMD-RX-7600-CURRENT",
+      "domain": "loja-boa.example.br",
+      "firstSeenAt": "2026-07-02T10:00:00.000Z",
+      "lastSeenAt": "2026-07-02T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "muito-boa-history-1",
+      "product": {
+        "id": "nvidia-rtx-4070",
+        "vendor": "NVIDIA",
+        "model": "RTX 4070"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-muito-boa.example.br/produto/muito-boa-history-1?sku=NVIDIA-RTX-4070-HISTORY-1",
+      "store": {
+        "domain": "loja-muito-boa.example.br",
+        "adapterName": "loja-muito-boa",
+        "storeProductId": "NVIDIA-RTX-4070-HISTORY-1",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "NVIDIA-RTX-4070-HISTORY-1",
+      "domain": "loja-muito-boa.example.br",
+      "firstSeenAt": "2026-06-20T10:00:00.000Z",
+      "lastSeenAt": "2026-06-20T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "muito-boa-history-2",
+      "product": {
+        "id": "nvidia-rtx-4070",
+        "vendor": "NVIDIA",
+        "model": "RTX 4070"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-muito-boa.example.br/produto/muito-boa-history-2?sku=NVIDIA-RTX-4070-HISTORY-2",
+      "store": {
+        "domain": "loja-muito-boa.example.br",
+        "adapterName": "loja-muito-boa",
+        "storeProductId": "NVIDIA-RTX-4070-HISTORY-2",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "NVIDIA-RTX-4070-HISTORY-2",
+      "domain": "loja-muito-boa.example.br",
+      "firstSeenAt": "2026-06-25T10:00:00.000Z",
+      "lastSeenAt": "2026-06-25T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "muito-boa-history-3",
+      "product": {
+        "id": "nvidia-rtx-4070",
+        "vendor": "NVIDIA",
+        "model": "RTX 4070"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-muito-boa.example.br/produto/muito-boa-history-3?sku=NVIDIA-RTX-4070-HISTORY-3",
+      "store": {
+        "domain": "loja-muito-boa.example.br",
+        "adapterName": "loja-muito-boa",
+        "storeProductId": "NVIDIA-RTX-4070-HISTORY-3",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "NVIDIA-RTX-4070-HISTORY-3",
+      "domain": "loja-muito-boa.example.br",
+      "firstSeenAt": "2026-06-30T10:00:00.000Z",
+      "lastSeenAt": "2026-06-30T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "muito-boa-current",
+      "product": {
+        "id": "nvidia-rtx-4070",
+        "vendor": "NVIDIA",
+        "model": "RTX 4070"
+      },
+      "price": {
+        "amountInCents": 180000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 1.800,00"
+      },
+      "priceBucketInCents": 180000,
+      "normalizedUrl": "https://loja-muito-boa.example.br/produto/muito-boa-current?sku=NVIDIA-RTX-4070-CURRENT",
+      "store": {
+        "domain": "loja-muito-boa.example.br",
+        "adapterName": "loja-muito-boa",
+        "storeProductId": "NVIDIA-RTX-4070-CURRENT",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "NVIDIA-RTX-4070-CURRENT",
+      "domain": "loja-muito-boa.example.br",
+      "firstSeenAt": "2026-07-02T10:00:00.000Z",
+      "lastSeenAt": "2026-07-02T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "excepcional-history-1",
+      "product": {
+        "id": "amd-rx-7800-xt",
+        "vendor": "AMD",
+        "model": "RX 7800 XT"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-excepcional.example.br/produto/excepcional-history-1?sku=AMD-RX-7800-XT-HISTORY-1",
+      "store": {
+        "domain": "loja-excepcional.example.br",
+        "adapterName": "loja-excepcional",
+        "storeProductId": "AMD-RX-7800-XT-HISTORY-1",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "AMD-RX-7800-XT-HISTORY-1",
+      "domain": "loja-excepcional.example.br",
+      "firstSeenAt": "2026-06-20T10:00:00.000Z",
+      "lastSeenAt": "2026-06-20T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "excepcional-history-2",
+      "product": {
+        "id": "amd-rx-7800-xt",
+        "vendor": "AMD",
+        "model": "RX 7800 XT"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-excepcional.example.br/produto/excepcional-history-2?sku=AMD-RX-7800-XT-HISTORY-2",
+      "store": {
+        "domain": "loja-excepcional.example.br",
+        "adapterName": "loja-excepcional",
+        "storeProductId": "AMD-RX-7800-XT-HISTORY-2",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "AMD-RX-7800-XT-HISTORY-2",
+      "domain": "loja-excepcional.example.br",
+      "firstSeenAt": "2026-06-25T10:00:00.000Z",
+      "lastSeenAt": "2026-06-25T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "excepcional-history-3",
+      "product": {
+        "id": "amd-rx-7800-xt",
+        "vendor": "AMD",
+        "model": "RX 7800 XT"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-excepcional.example.br/produto/excepcional-history-3?sku=AMD-RX-7800-XT-HISTORY-3",
+      "store": {
+        "domain": "loja-excepcional.example.br",
+        "adapterName": "loja-excepcional",
+        "storeProductId": "AMD-RX-7800-XT-HISTORY-3",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "AMD-RX-7800-XT-HISTORY-3",
+      "domain": "loja-excepcional.example.br",
+      "firstSeenAt": "2026-06-30T10:00:00.000Z",
+      "lastSeenAt": "2026-06-30T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "excepcional-current",
+      "product": {
+        "id": "amd-rx-7800-xt",
+        "vendor": "AMD",
+        "model": "RX 7800 XT"
+      },
+      "price": {
+        "amountInCents": 170000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 1.700,00"
+      },
+      "priceBucketInCents": 170000,
+      "normalizedUrl": "https://loja-excepcional.example.br/produto/excepcional-current?sku=AMD-RX-7800-XT-CURRENT",
+      "store": {
+        "domain": "loja-excepcional.example.br",
+        "adapterName": "loja-excepcional",
+        "storeProductId": "AMD-RX-7800-XT-CURRENT",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "AMD-RX-7800-XT-CURRENT",
+      "domain": "loja-excepcional.example.br",
+      "firstSeenAt": "2026-07-02T10:00:00.000Z",
+      "lastSeenAt": "2026-07-02T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "insufficient-history-1",
+      "product": {
+        "id": "nvidia-rtx-4060-ti",
+        "vendor": "NVIDIA",
+        "model": "RTX 4060 Ti"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-insufficient.example.br/produto/insufficient-history-1?sku=NVIDIA-RTX-4060-TI-HISTORY-1",
+      "store": {
+        "domain": "loja-insufficient.example.br",
+        "adapterName": "loja-insufficient",
+        "storeProductId": "NVIDIA-RTX-4060-TI-HISTORY-1",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "NVIDIA-RTX-4060-TI-HISTORY-1",
+      "domain": "loja-insufficient.example.br",
+      "firstSeenAt": "2026-06-25T10:00:00.000Z",
+      "lastSeenAt": "2026-06-25T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "insufficient-history-2",
+      "product": {
+        "id": "nvidia-rtx-4060-ti",
+        "vendor": "NVIDIA",
+        "model": "RTX 4060 Ti"
+      },
+      "price": {
+        "amountInCents": 200000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 2.000,00"
+      },
+      "priceBucketInCents": 200000,
+      "normalizedUrl": "https://loja-insufficient.example.br/produto/insufficient-history-2?sku=NVIDIA-RTX-4060-TI-HISTORY-2",
+      "store": {
+        "domain": "loja-insufficient.example.br",
+        "adapterName": "loja-insufficient",
+        "storeProductId": "NVIDIA-RTX-4060-TI-HISTORY-2",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "NVIDIA-RTX-4060-TI-HISTORY-2",
+      "domain": "loja-insufficient.example.br",
+      "firstSeenAt": "2026-06-30T10:00:00.000Z",
+      "lastSeenAt": "2026-06-30T10:00:00.000Z",
+      "mentionCount": 1
+    },
+    {
+      "id": "insufficient-current",
+      "product": {
+        "id": "nvidia-rtx-4060-ti",
+        "vendor": "NVIDIA",
+        "model": "RTX 4060 Ti"
+      },
+      "price": {
+        "amountInCents": 150000,
+        "currency": "BRL",
+        "paymentMethod": "pix",
+        "rawText": "R$ 1.500,00"
+      },
+      "priceBucketInCents": 150000,
+      "normalizedUrl": "https://loja-insufficient.example.br/produto/insufficient-current?sku=NVIDIA-RTX-4060-TI-CURRENT",
+      "store": {
+        "domain": "loja-insufficient.example.br",
+        "adapterName": "loja-insufficient",
+        "storeProductId": "NVIDIA-RTX-4060-TI-CURRENT",
+        "storeProductIdSource": "query:sku"
+      },
+      "storeProductId": "NVIDIA-RTX-4060-TI-CURRENT",
+      "domain": "loja-insufficient.example.br",
+      "firstSeenAt": "2026-07-02T10:00:00.000Z",
+      "lastSeenAt": "2026-07-02T10:00:00.000Z",
+      "mentionCount": 1
+    }
+  ]
+}

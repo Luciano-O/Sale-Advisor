@@ -3,6 +3,13 @@ export { identifyGpuProduct } from "./gpu.js";
 export { buildOfferCandidate } from "./offer-candidate.js";
 export { calculatePriceBucket } from "./price-bucket.js";
 export { parsePrice } from "./price.js";
+export {
+  DEFAULT_PRICE_SCORING_POLICY,
+  calculatePriceHistoryMetrics,
+  createPriceSnapshots,
+  scoreOffer,
+  scoreOffersWithPriceHistory
+} from "./price-history.js";
 export { normalizeStore, normalizeStoreDomain } from "./store.js";
 export { normalizeUrl } from "./url.js";
 export type {
@@ -18,8 +25,15 @@ export type {
   OfferCandidate,
   OfferMention,
   ParsedPrice,
+  PriceHistoryMetrics,
+  PriceScoringOutput,
+  PriceScoringPolicy,
+  PriceSnapshot,
+  OfferScoreLabel,
   PaymentMethod,
   ProductCondition,
+  ScoredOffer,
+  ScoredOfferAudit,
   StoreAdapter,
   StoreProductIdSource
 } from "./types.js";

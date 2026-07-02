@@ -108,3 +108,66 @@ export interface DeduplicationResult {
 export interface DeduplicationOptions {
   windowMs?: number;
 }
+
+export type OfferScoreLabel = "normal" | "boa" | "muito_boa" | "excepcional";
+
+export interface PriceSnapshot {
+  offerId: string;
+  productId: string;
+  observedAt: string;
+  amountInCents: number;
+  domain: string;
+  storeProductId: string | null;
+  mentionCount: number;
+}
+
+export interface PriceHistoryMetrics {
+  lowestPriceIn7dInCents: number | null;
+  lowestPriceIn30dInCents: number | null;
+  lowestPriceIn90dInCents: number | null;
+  medianPriceIn30dInCents: number | null;
+  deviationFromMedian30dPercent: number | null;
+  snapshotCount7d: number;
+  snapshotCount30d: number;
+  snapshotCount90d: number;
+  usedSnapshotOfferIds7d: string[];
+  usedSnapshotOfferIds30d: string[];
+  usedSnapshotOfferIds90d: string[];
+}
+
+export interface PriceScoringPolicy {
+  version: "offline-price-history-v1";
+  windowsDays: {
+    lowestPrice7d: number;
+    lowestPrice30d: number;
+    lowestPrice90d: number;
+    median30d: number;
+  };
+  minimumSnapshotsIn30d: number;
+  thresholds: {
+    boa: number;
+    muito_boa: number;
+    excepcional: number;
+  };
+}
+
+export interface ScoredOfferAudit {
+  scoredAt: string;
+  comparedSnapshotOfferIds7d: string[];
+  comparedSnapshotOfferIds30d: string[];
+  comparedSnapshotOfferIds90d: string[];
+}
+
+export interface ScoredOffer {
+  offer: ConsolidatedOffer;
+  label: OfferScoreLabel;
+  metrics: PriceHistoryMetrics;
+  reasons: string[];
+  audit: ScoredOfferAudit;
+}
+
+export interface PriceScoringOutput {
+  scoringPolicy: PriceScoringPolicy;
+  priceSnapshots: PriceSnapshot[];
+  scoredOffers: ScoredOffer[];
+}
