@@ -1,0 +1,7 @@
+{
+  "name": "@sale-advisor/worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Workers de coleta, parsing, deduplicacao, scoring e notificacoes.",
+  "scripts": {}
+}

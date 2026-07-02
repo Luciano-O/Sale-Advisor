@@ -1,0 +1,7 @@
+{
+  "name": "@sale-advisor/admin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Painel interno do Sale Advisor.",
+  "scripts": {}
+}
