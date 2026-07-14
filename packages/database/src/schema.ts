@@ -241,12 +241,16 @@ export const offerScores = pgTable(
     label: varchar("label", { length: 30 }).notNull(),
     qualityScore: integer("quality_score").notNull(),
     confidence: varchar("confidence", { length: 20 }).notNull(),
+    inputHash: varchar("input_hash", { length: 64 }),
     metrics: jsonb("metrics").notNull(),
     reasons: jsonb("reasons").notNull(),
     historyCutoffAt: timestamp("history_cutoff_at", { withTimezone: true }).notNull(),
     createdAt: createdAt()
   },
-  (table) => [index("offer_scores_offer_created_idx").on(table.offerId, table.createdAt)]
+  (table) => [
+    index("offer_scores_offer_created_idx").on(table.offerId, table.createdAt),
+    uniqueIndex("offer_scores_input_unique").on(table.offerId, table.policyVersion, table.inputHash)
+  ]
 );
 
 export const deviceInstallations = pgTable("device_installations", {

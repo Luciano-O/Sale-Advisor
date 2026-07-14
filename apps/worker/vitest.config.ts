@@ -5,10 +5,23 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
-      "@sale-advisor/domain": fileURLToPath(new URL("../../packages/domain/src/index.ts", import.meta.url))
+      "@sale-advisor/domain": fileURLToPath(
+        new URL("../../packages/domain/src/index.ts", import.meta.url)
+      )
     }
   },
   test: {
-    include: ["src/**/*.test.ts"]
+    include: ["src/**/*.test.ts"],
+    coverage: {
+      provider: "v8",
+      include: [
+        "src/pipeline.ts",
+        "src/notification.ts",
+        "src/queue-config.ts",
+        "src/process-fixtures.ts",
+        "src/process-scoring-fixtures.ts"
+      ],
+      thresholds: { lines: 80, branches: 75, functions: 80, statements: 80 }
+    }
   }
 });

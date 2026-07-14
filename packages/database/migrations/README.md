@@ -11,3 +11,12 @@
   preferível a apagar tabelas auditáveis.
 
 Migrations posteriores devem ser aditivas e documentar compatibilidade, impacto e rollback.
+
+## 0001_plain_tinkerer.sql
+
+- Compatibilidade: aditiva; `input_hash` é nullable para que scores já existentes permaneçam
+  válidos durante a atualização.
+- Impacto: novos scores recebem um hash determinístico e um índice único impede duplicação por
+  replay. Mensagens, menções, snapshots e scores legados não são alterados ou removidos.
+- Rollback: remover o índice `offer_scores_input_unique` e a coluna `input_hash`; a aplicação deve
+  ser revertida no mesmo deploy para não tentar gravar a coluna ausente.
