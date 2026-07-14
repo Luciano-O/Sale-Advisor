@@ -1,4 +1,4 @@
-import type { NormalizedStore, NormalizedUrl, NormalizeStoreInput, StoreProductIdSource } from "./types.js";
+import type { NormalizedStore, NormalizeStoreInput, StoreProductIdSource } from "./types.js";
 
 const GENERIC_QUERY_ID_PARAMS = ["sku", "productId", "produtoId", "itemId", "id"] as const;
 

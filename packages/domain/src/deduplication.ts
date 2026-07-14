@@ -8,7 +8,7 @@ import type {
 
 const DEFAULT_DEDUPLICATION_WINDOW_MS = 48 * 60 * 60 * 1000;
 
-interface MutableOffer extends ConsolidatedOffer {}
+type MutableOffer = ConsolidatedOffer;
 
 export function deduplicateOfferCandidates(
   candidates: OfferCandidate[],

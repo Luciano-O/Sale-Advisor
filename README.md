@@ -1,17 +1,28 @@
 # Sale Advisor
 
-Monorepo para um app de monitoramento de promoções. O MVP foca em placas de vídeo e usa grupos de Telegram como fonte inicial de ofertas.
+Monorepo para um app de monitoramento de promoções. O MVP local foca em placas de vídeo e usa
+cadastro manual/importação JSON; integração com Telegram não faz parte desta versão.
 
 ## Estrutura
 
 ```text
 apps/api      Backend HTTP
-apps/worker   Coleta, parsing, dedupe, scoring e notificações
-apps/mobile   App mobile
+apps/worker   Parsing, dedupe, scoring e notificações
+apps/mobile   App Android-first
 apps/admin    Painel interno
-packages      Código compartilhado
-infra         Infraestrutura e deploy
-docs          Documentação e decisões arquiteturais
+packages      Domínio, contratos, banco e código compartilhado
+infra         Infraestrutura local
+docs          Decisões arquiteturais
 ```
 
-As decisões técnicas e práticas de desenvolvimento do projeto estão em `AGENTS.md`.
+## Ambiente local
+
+Requisitos: Node.js 20+, pnpm 10 e Docker Desktop.
+
+```powershell
+Copy-Item .env.example .env
+./infra/bootstrap.ps1
+pnpm dev
+```
+
+As decisões técnicas e práticas de desenvolvimento estão em `AGENTS.md`.
