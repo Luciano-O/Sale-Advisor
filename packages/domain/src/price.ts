@@ -1,4 +1,4 @@
-import type { ParsedPrice, PaymentMethod } from "./types.js";
+import type { ParsedPrice, PaymentMethod, PriceQuote } from "./types.js";
 
 interface PriceCandidate extends ParsedPrice {
   index: number;
@@ -11,34 +11,53 @@ const CASH_PATTERN = /\b(?:boleto|cash|dinheiro)\b/i;
 const INSTALLMENT_PATTERN = /\b(?:\d{1,2}x|parcelad[oa]|parcela|sem juros)\b/i;
 
 export function parsePrice(text: string): ParsedPrice | null {
-  const candidates = collectPriceCandidates(text);
-
-  if (candidates.length === 0) {
-    return null;
-  }
-
-  const [best] = candidates.sort((left, right) => {
-    if (right.score !== left.score) {
-      return right.score - left.score;
-    }
-
-    if (right.amountInCents !== left.amountInCents) {
-      return right.amountInCents - left.amountInCents;
-    }
-
-    return left.index - right.index;
-  });
-
-  if (!best) {
-    return null;
-  }
+  const best = selectEffectivePrice(parsePriceQuotes(text));
+  if (!best) return null;
 
   return {
-    amountInCents: best.amountInCents,
+    amountInCents: best.totalInCents,
     currency: "BRL",
-    paymentMethod: best.paymentMethod,
+    paymentMethod: best.method,
     rawText: best.rawText
   };
+}
+
+export function parsePriceQuotes(text: string): PriceQuote[] {
+  return collectPriceCandidates(text).map((candidate) => {
+    const context = text.slice(
+      Math.max(0, candidate.index - 32),
+      Math.min(text.length, candidate.index + candidate.rawText.length + 40)
+    );
+    const installmentMatch = context.match(/\b(\d{1,2})x\b/i);
+    const installments =
+      candidate.paymentMethod === "installment" && installmentMatch?.[1]
+        ? Number.parseInt(installmentMatch[1], 10)
+        : null;
+    const isInstallmentUnit =
+      installments !== null &&
+      /\bde\s*$/i.test(text.slice(Math.max(0, candidate.index - 8), candidate.index));
+    const totalInCents = isInstallmentUnit
+      ? candidate.amountInCents * installments
+      : candidate.amountInCents;
+
+    return {
+      method: candidate.paymentMethod,
+      amountInCents: candidate.amountInCents,
+      installments,
+      totalInCents,
+      rawText: candidate.rawText
+    };
+  });
+}
+
+export function selectEffectivePrice(quotes: PriceQuote[]): PriceQuote | null {
+  const priority: Record<PaymentMethod, number> = { pix: 0, cash: 1, installment: 2, unknown: 3 };
+  return (
+    [...quotes].sort(
+      (left, right) =>
+        priority[left.method] - priority[right.method] || left.totalInCents - right.totalInCents
+    )[0] ?? null
+  );
 }
 
 function collectPriceCandidates(text: string): PriceCandidate[] {
@@ -59,8 +78,11 @@ function collectPriceCandidates(text: string): PriceCandidate[] {
     }
 
     const index = match.index ?? 0;
-    const context = text.slice(Math.max(0, index - 24), Math.min(text.length, index + rawText.length + 32));
-    const paymentMethod = detectPaymentMethod(context);
+    const context = text.slice(
+      Math.max(0, index - 24),
+      Math.min(text.length, index + rawText.length + 32)
+    );
+    const paymentMethod = detectPaymentMethod(text, index, rawText.length);
 
     candidates.push({
       amountInCents,
@@ -84,7 +106,10 @@ function looksLikePrice(rawText: string, fullText: string, index: number): boole
     return true;
   }
 
-  const context = fullText.slice(Math.max(0, index - 12), Math.min(fullText.length, index + rawText.length + 16));
+  const context = fullText.slice(
+    Math.max(0, index - 12),
+    Math.min(fullText.length, index + rawText.length + 16)
+  );
   return PIX_PATTERN.test(context) || CASH_PATTERN.test(context) || /\bpor\b/i.test(context);
 }
 
@@ -93,7 +118,10 @@ function isLikelyGpuModelNumber(fullText: string, index: number): boolean {
   return /\b(?:rtx|rx)\s*$/i.test(before);
 }
 
-function parseBrlAmountToCents(integerPart: string, decimalPart: string | undefined): number | null {
+function parseBrlAmountToCents(
+  integerPart: string,
+  decimalPart: string | undefined
+): number | null {
   const normalizedInteger = integerPart.replace(/\./g, "");
 
   if (!/^\d+$/.test(normalizedInteger)) {
@@ -110,19 +138,24 @@ function parseBrlAmountToCents(integerPart: string, decimalPart: string | undefi
   return reais * 100 + cents;
 }
 
-function detectPaymentMethod(context: string): PaymentMethod {
-  if (PIX_PATTERN.test(context)) {
-    return "pix";
-  }
-
-  if (CASH_PATTERN.test(context) || /\b(?:avista|a vista|à vista)\b/i.test(context)) {
-    return "cash";
-  }
-
-  if (INSTALLMENT_PATTERN.test(context)) {
+function detectPaymentMethod(text: string, index: number, length: number): PaymentMethod {
+  const before = text.slice(Math.max(0, index - 24), index);
+  const after = text.slice(index + length, Math.min(text.length, index + length + 24));
+  if (/\b\d{1,2}x\s+(?:de\s*)?$/i.test(before) || /^\s*(?:em\s*)?\d{1,2}x\b/i.test(after)) {
     return "installment";
   }
-
+  if (/\bpix\b[^;,]{0,12}$/i.test(before) || /^[^;,]{0,16}\bpix\b/i.test(after)) {
+    return "pix";
+  }
+  if (
+    /\b(?:boleto|cash|dinheiro|avista|a vista|à vista)\b[^;,]{0,12}$/i.test(before) ||
+    /^[^;,]{0,16}\b(?:boleto|cash|dinheiro|avista|a vista|à vista)\b/i.test(after)
+  ) {
+    return "cash";
+  }
+  if (INSTALLMENT_PATTERN.test(`${before} ${after}`)) {
+    return "installment";
+  }
   return "unknown";
 }
 

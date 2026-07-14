@@ -91,6 +91,9 @@ importers:
       '@sale-advisor/config':
         specifier: workspace:*
         version: link:../config
+      '@vitest/coverage-v8':
+        specifier: ^2.1.9
+        version: 2.1.9(vitest@2.1.9(@types/node@26.1.0))
 
   packages/shared: {}
 

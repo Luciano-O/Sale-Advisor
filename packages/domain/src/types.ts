@@ -49,6 +49,15 @@ export interface CanonicalGpuProduct {
   id: string;
   vendor: GpuVendor;
   model: string;
+  vramGb?: number | null;
+}
+
+export interface PriceQuote {
+  method: PaymentMethod;
+  amountInCents: number;
+  installments: number | null;
+  totalInCents: number;
+  rawText: string;
 }
 
 export interface BuildOfferCandidateInput {
@@ -70,8 +79,13 @@ export interface OfferCandidate {
   domain: string | null;
   product: CanonicalGpuProduct | null;
   price: ParsedPrice | null;
+  prices: PriceQuote[];
+  effectivePrice: PriceQuote | null;
   priceBucketInCents: number | null;
   condition: ProductCondition;
+  boardBrand: string | null;
+  coupon: string | null;
+  parserVersion: 2;
   rawMessageId?: string;
   sourceName?: string;
   storeDomain?: string;
@@ -89,6 +103,9 @@ export interface ConsolidatedOffer {
   firstSeenAt: string;
   lastSeenAt: string;
   mentionCount: number;
+  coupon?: string | null;
+  observedPricesInCents?: number[];
+  storeReliability?: number;
 }
 
 export interface OfferMention {
@@ -161,6 +178,8 @@ export interface ScoredOfferAudit {
 export interface ScoredOffer {
   offer: ConsolidatedOffer;
   label: OfferScoreLabel;
+  qualityScore: number;
+  confidence: "low" | "medium" | "high";
   metrics: PriceHistoryMetrics;
   reasons: string[];
   audit: ScoredOfferAudit;
