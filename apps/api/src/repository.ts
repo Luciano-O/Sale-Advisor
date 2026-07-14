@@ -59,6 +59,9 @@ export interface ApiRepository {
     }>
   ): Promise<number>;
   health(): Promise<{ outboxPending: number }>;
+  adminDashboard(): Promise<Record<string, unknown>>;
+  adminList(resource: "messages" | "offers" | "products" | "sources" | "audit"): Promise<unknown[]>;
+  adminAction(action: string, payload: Record<string, unknown>): Promise<Record<string, unknown>>;
 }
 
 export class InMemoryApiRepository implements ApiRepository {
@@ -67,6 +70,7 @@ export class InMemoryApiRepository implements ApiRepository {
     ImportMessage & { id: string; sourceKey: string; notifyEligible: boolean }
   > = [];
   readonly outbox: Array<{ id: string; aggregateId: string; topic: string }> = [];
+  readonly audit: Array<{ id: string; action: string; payload: Record<string, unknown> }> = [];
   private readonly offers: PublicOffer[] = [];
   private readonly installations = new Map<
     string,
@@ -166,6 +170,40 @@ export class InMemoryApiRepository implements ApiRepository {
 
   async health() {
     return { outboxPending: this.outbox.length };
+  }
+
+  async adminDashboard() {
+    return {
+      pending: this.rawMessages.length,
+      partial: 0,
+      failed: 0,
+      outboxPending: this.outbox.length,
+      offersByLabel: Object.fromEntries(
+        ["normal", "boa", "muito_boa", "excepcional"].map((label) => [
+          label,
+          this.offers.filter((offer) => offer.score.label === label).length
+        ])
+      )
+    };
+  }
+
+  async adminList(resource: "messages" | "offers" | "products" | "sources" | "audit") {
+    if (resource === "messages") return this.rawMessages;
+    if (resource === "offers") return this.offers;
+    if (resource === "audit") return this.audit;
+    return [];
+  }
+
+  async adminAction(action: string, payload: Record<string, unknown>) {
+    if (action === "message.reprocess") {
+      const id = String(payload.id);
+      const message = this.rawMessages.find((item) => item.id === id);
+      if (!message) return { found: false };
+      this.outbox.push({ id: randomUUID(), aggregateId: id, topic: "raw-message.created" });
+    }
+    const event = { id: randomUUID(), action, payload };
+    this.audit.push(event);
+    return { found: true, auditId: event.id };
   }
 
   publishOffer({ index }: { index: number }) {

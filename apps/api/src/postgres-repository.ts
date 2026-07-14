@@ -191,6 +191,158 @@ export class PostgresApiRepository implements ApiRepository {
     return { outboxPending: rows[0]?.count ?? 0 };
   }
 
+  async adminDashboard() {
+    const [messages, labels, outbox] = await Promise.all([
+      this.connection.client<{ status: string; count: number }[]>`
+        select status::text, count(*)::int as count from raw_messages group by status
+      `,
+      this.connection.client<{ label: string; count: number }[]>`
+        select coalesce(score.label, 'normal') as label, count(*)::int as count from offers o
+        left join lateral (select label from offer_scores where offer_id = o.id order by created_at desc limit 1) score on true
+        where o.status = 'active' group by coalesce(score.label, 'normal')
+      `,
+      this.health()
+    ]);
+    const counts = Object.fromEntries(messages.map((item) => [item.status, item.count]));
+    return {
+      pending: counts.pending ?? 0,
+      partial: counts.partial ?? 0,
+      failed: counts.failed ?? 0,
+      outboxPending: outbox.outboxPending,
+      offersByLabel: Object.fromEntries(labels.map((item) => [item.label, item.count]))
+    };
+  }
+
+  async adminList(resource: "messages" | "offers" | "products" | "sources" | "audit") {
+    if (resource === "messages") {
+      return this.connection.client<Record<string, unknown>[]>`
+        select rm.id, rm.text, rm.status, rm.captured_at as "capturedAt", rm.notify_eligible as "notifyEligible",
+          rp.id as "parseId", rp.version as "parseVersion", rp.status as "parseStatus", rp.candidate, rp.errors
+        from raw_messages rm left join lateral (
+          select * from raw_message_parses where raw_message_id = rm.id order by version desc limit 1
+        ) rp on true order by rm.captured_at desc limit 200
+      `;
+    }
+    if (resource === "offers") {
+      return this.connection.client<Record<string, unknown>[]>`
+        select o.*, p.canonical_key as "productKey", s.domain,
+          score.label, score.quality_score as "qualityScore", score.confidence, score.metrics, score.reasons
+        from offers o join products p on p.id = o.product_id join stores s on s.id = o.store_id
+        left join lateral (select * from offer_scores where offer_id = o.id order by created_at desc limit 1) score on true
+        order by o.first_seen_at desc limit 200
+      `;
+    }
+    if (resource === "products") {
+      return this.connection.client<Record<string, unknown>[]>`
+        select p.*, coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'alias', a.normalized_alias, 'active', a.active))
+          filter (where a.id is not null), '[]'::jsonb) as aliases
+        from products p left join product_aliases a on a.product_id = p.id group by p.id order by p.vendor, p.model, p.vram_gb
+      `;
+    }
+    if (resource === "sources") {
+      return this.connection.client<Record<string, unknown>[]>`
+        select 'source' as type, id, name, kind::text as detail, reliability, blocked_at as "blockedAt" from sources
+        union all
+        select 'store' as type, id, name, domain as detail, reliability, blocked_at as "blockedAt" from stores
+        order by type, name
+      `;
+    }
+    return this.connection.client<Record<string, unknown>[]>`
+      select id, action, entity_type as "entityType", entity_id as "entityId", justification,
+        before, after, created_at as "createdAt" from admin_audit_events order by created_at desc limit 500
+    `;
+  }
+
+  async adminAction(action: string, payload: Record<string, unknown>) {
+    return this.connection.client.begin(async (sql) => {
+      const id = typeof payload.id === "string" ? payload.id : null;
+      const justification = typeof payload.justification === "string" ? payload.justification : "";
+      let entityId = id;
+      let entityType = action.split(".")[0] ?? "unknown";
+      let found = true;
+      if (action === "message.reprocess" && id) {
+        const rows = await sql<
+          { id: string }[]
+        >`update raw_messages set status = 'pending', updated_at = now() where id = ${id} returning id`;
+        found = rows.length > 0;
+        if (found) {
+          const versions = await sql<{ version: number }[]>`
+            select coalesce(max(version), 0)::int + 1 as version from outbox_events where topic = 'raw-message.created' and aggregate_id = ${id}
+          `;
+          await sql`
+            insert into outbox_events (topic, aggregate_id, version, correlation_id, payload)
+            values ('raw-message.created', ${id}, ${versions[0]?.version ?? 1}, ${randomUUID()}, ${sql.json({ rawMessageId: id })})
+          `;
+        }
+      } else if (action === "message.correct" && id) {
+        const changes = JSON.parse(JSON.stringify(payload.changes ?? {}));
+        const rows = await sql<{ id: string }[]>`
+          update raw_message_parses set admin_overrides = admin_overrides || ${sql.json(changes)}::jsonb
+          where id = (select id from raw_message_parses where raw_message_id = ${id} order by version desc limit 1) returning id
+        `;
+        found = rows.length > 0;
+      } else if ((action === "source.block" || action === "store.block") && id) {
+        const blocked = payload.blocked === true;
+        const rows =
+          action === "source.block"
+            ? await sql<
+                { id: string }[]
+              >`update sources set blocked_at = case when ${blocked} then now() else null end, updated_at = now() where id = ${id} returning id`
+            : await sql<
+                { id: string }[]
+              >`update stores set blocked_at = case when ${blocked} then now() else null end, updated_at = now() where id = ${id} returning id`;
+        found = rows.length > 0;
+      } else if (action === "alias.create") {
+        entityId = typeof payload.productId === "string" ? payload.productId : null;
+        entityType = "product";
+        const alias =
+          typeof payload.alias === "string" ? payload.alias.trim().toLocaleLowerCase("pt-BR") : "";
+        if (!entityId) found = false;
+        else
+          await sql`
+          insert into product_aliases (product_id, normalized_alias) values (${entityId}, ${alias})
+          on conflict (normalized_alias) do update set product_id = excluded.product_id, active = true, updated_at = now()
+        `;
+      } else if (action === "offer.merge" && id) {
+        const sourceIds = Array.isArray(payload.sourceOfferIds)
+          ? payload.sourceOfferIds.filter((value): value is string => typeof value === "string")
+          : [];
+        for (const sourceId of sourceIds) {
+          await sql`update offer_mentions set offer_id = ${id} where offer_id = ${sourceId}`;
+          await sql`update offers set status = 'merged', merged_into_id = ${id}, updated_at = now() where id = ${sourceId}`;
+        }
+        await sql`update offers set mention_count = (select count(*)::int from offer_mentions where offer_id = ${id} and active), updated_at = now() where id = ${id}`;
+      } else if (action === "offer.split" && id) {
+        const inserted = await sql<{ id: string }[]>`
+          insert into offers (product_id, store_id, current_price_in_cents, lowest_price_in_cents, price_bucket_in_cents,
+            coupon, condition, normalized_url, normalized_url_hash, store_product_id, first_seen_at, last_seen_at)
+          select product_id, store_id, current_price_in_cents, lowest_price_in_cents, price_bucket_in_cents,
+            coupon, condition, normalized_url, normalized_url_hash, store_product_id, first_seen_at, last_seen_at
+          from offers where id = ${id} returning id
+        `;
+        const splitId = inserted[0]?.id;
+        const mentionIds = Array.isArray(payload.mentionIds)
+          ? payload.mentionIds.filter((value): value is string => typeof value === "string")
+          : [];
+        if (!splitId) found = false;
+        else {
+          for (const mentionId of mentionIds)
+            await sql`update offer_mentions set offer_id = ${splitId} where id = ${mentionId} and offer_id = ${id}`;
+          await sql`update offers set mention_count = (select count(*)::int from offer_mentions where offer_id = ${splitId} and active) where id = ${splitId}`;
+          await sql`update offers set mention_count = (select count(*)::int from offer_mentions where offer_id = ${id} and active) where id = ${id}`;
+        }
+      }
+
+      if (!found || !entityId) return { found: false };
+      const audits = await sql<{ id: string }[]>`
+        insert into admin_audit_events (action, entity_type, entity_id, justification, before, after)
+        values (${action}, ${entityType}, ${entityId}, ${justification}, '{}'::jsonb,
+          ${sql.json(JSON.parse(JSON.stringify(payload)))}) returning id
+      `;
+      return { found: true, auditId: audits[0]?.id };
+    });
+  }
+
   async onApplicationShutdown() {
     await this.connection.client.end();
   }

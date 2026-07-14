@@ -136,4 +136,73 @@ describe("MVP API", () => {
         .body.acceptedCount
     ).toBe(0);
   });
+
+  it("exposes authenticated pipeline counters and audits replay justification", async () => {
+    const created = await request(context.app.getHttpServer())
+      .post("/v1/admin/messages")
+      .set("x-admin-key", ADMIN_KEY)
+      .send({ text: "RTX 4060 R$ 1.900", capturedAt: "2026-07-14T12:00:00.000Z" })
+      .expect(201);
+    await request(context.app.getHttpServer())
+      .get("/v1/admin/dashboard")
+      .set("x-admin-key", ADMIN_KEY)
+      .expect(200)
+      .expect(({ body }) => expect(body).toMatchObject({ pending: 1 }));
+    await request(context.app.getHttpServer())
+      .post(`/v1/admin/messages/${created.body.messageId}/reprocess`)
+      .set("x-admin-key", ADMIN_KEY)
+      .send({ justification: "" })
+      .expect(400);
+    await request(context.app.getHttpServer())
+      .post(`/v1/admin/messages/${created.body.messageId}/reprocess`)
+      .set("x-admin-key", ADMIN_KEY)
+      .send({ justification: "Parser atualizado para o caso real" })
+      .expect(201);
+    expect(context.repository.audit).toEqual(
+      expect.arrayContaining([expect.objectContaining({ action: "message.reprocess" })])
+    );
+  });
+
+  it("exposes curation lists and validates every audit-sensitive action", async () => {
+    const headers = { "x-admin-key": ADMIN_KEY };
+    for (const resource of ["messages", "offers", "products", "sources", "audit"]) {
+      await request(context.app.getHttpServer())
+        .get(`/v1/admin/${resource}`)
+        .set(headers)
+        .expect(200)
+        .expect(({ body }) => expect(body.items).toBeInstanceOf(Array));
+    }
+    const id = "00000000-0000-4000-8000-000000000001";
+    const justification = "Correção baseada na revisão da mensagem original";
+    await request(context.app.getHttpServer())
+      .put(`/v1/admin/messages/${id}/correction`)
+      .set(headers)
+      .send({ justification, changes: { coupon: "GPU" } })
+      .expect(200);
+    await request(context.app.getHttpServer())
+      .post(`/v1/admin/offers/${id}/merge`)
+      .set(headers)
+      .send({ justification, sourceOfferIds: ["00000000-0000-4000-8000-000000000002"] })
+      .expect(201);
+    await request(context.app.getHttpServer())
+      .post(`/v1/admin/offers/${id}/split`)
+      .set(headers)
+      .send({ justification, mentionIds: ["00000000-0000-4000-8000-000000000003"] })
+      .expect(201);
+    await request(context.app.getHttpServer())
+      .post("/v1/admin/aliases")
+      .set(headers)
+      .send({ justification, productId: id, alias: "RTX4060" })
+      .expect(201);
+    await request(context.app.getHttpServer())
+      .put(`/v1/admin/sources/${id}/block`)
+      .set(headers)
+      .send({ justification, blocked: true })
+      .expect(200);
+    await request(context.app.getHttpServer())
+      .put(`/v1/admin/stores/${id}/block`)
+      .set(headers)
+      .send({ justification, blocked: false })
+      .expect(200);
+  });
 });

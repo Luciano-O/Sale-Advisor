@@ -39,6 +39,17 @@ const pushTargetSchema = z.object({
   target: z.string().trim().min(1).nullable(),
   enabled: z.boolean()
 });
+const justificationSchema = z.object({ justification: z.string().trim().min(5).max(1_000) });
+const correctionSchema = justificationSchema.extend({
+  changes: z.record(z.string(), z.unknown())
+});
+const mergeSchema = justificationSchema.extend({ sourceOfferIds: z.array(z.uuid()).min(1) });
+const splitSchema = justificationSchema.extend({ mentionIds: z.array(z.uuid()).min(1) });
+const aliasSchema = justificationSchema.extend({
+  productId: z.uuid(),
+  alias: z.string().trim().min(2).max(160)
+});
+const blockSchema = justificationSchema.extend({ blocked: z.boolean() });
 
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
@@ -61,6 +72,36 @@ export class HealthController {
 @UseGuards(AdminKeyGuard)
 export class AdminController {
   constructor(@Inject(API_REPOSITORY) private readonly repository: ApiRepository) {}
+
+  @Get("dashboard")
+  dashboard() {
+    return this.repository.adminDashboard();
+  }
+
+  @Get("messages")
+  async messages() {
+    return { items: await this.repository.adminList("messages") };
+  }
+
+  @Get("offers")
+  async offers() {
+    return { items: await this.repository.adminList("offers") };
+  }
+
+  @Get("products")
+  async products() {
+    return { items: await this.repository.adminList("products") };
+  }
+
+  @Get("sources")
+  async sources() {
+    return { items: await this.repository.adminList("sources") };
+  }
+
+  @Get("audit")
+  async audit() {
+    return { items: await this.repository.adminList("audit") };
+  }
 
   @Post("messages")
   async createManualMessage(@Body() body: unknown) {
@@ -101,6 +142,50 @@ export class AdminController {
       rejectedCount: rejections.length,
       rejections
     };
+  }
+
+  @Post("messages/:id/reprocess")
+  reprocess(@Param("id") id: string, @Body() body: unknown) {
+    return this.repository.adminAction("message.reprocess", {
+      id,
+      ...parse(justificationSchema, body)
+    });
+  }
+
+  @Put("messages/:id/correction")
+  @HttpCode(200)
+  correct(@Param("id") id: string, @Body() body: unknown) {
+    return this.repository.adminAction("message.correct", {
+      id,
+      ...parse(correctionSchema, body)
+    });
+  }
+
+  @Post("offers/:id/merge")
+  merge(@Param("id") id: string, @Body() body: unknown) {
+    return this.repository.adminAction("offer.merge", { id, ...parse(mergeSchema, body) });
+  }
+
+  @Post("offers/:id/split")
+  split(@Param("id") id: string, @Body() body: unknown) {
+    return this.repository.adminAction("offer.split", { id, ...parse(splitSchema, body) });
+  }
+
+  @Post("aliases")
+  alias(@Body() body: unknown) {
+    return this.repository.adminAction("alias.create", parse(aliasSchema, body));
+  }
+
+  @Put("sources/:id/block")
+  @HttpCode(200)
+  blockSource(@Param("id") id: string, @Body() body: unknown) {
+    return this.repository.adminAction("source.block", { id, ...parse(blockSchema, body) });
+  }
+
+  @Put("stores/:id/block")
+  @HttpCode(200)
+  blockStore(@Param("id") id: string, @Body() body: unknown) {
+    return this.repository.adminAction("store.block", { id, ...parse(blockSchema, body) });
   }
 }
 
