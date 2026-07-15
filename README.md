@@ -17,12 +17,13 @@ docs          Decisões arquiteturais
 
 ## Ambiente local
 
-Requisitos: Node.js 20+, pnpm 10 e Docker Desktop.
+Requisitos: Node.js 20+, pnpm 11.7 e Docker Desktop com backend Linux ativo.
 
 ```powershell
 Copy-Item .env.example .env
-./infra/bootstrap.ps1
+powershell -ExecutionPolicy Bypass -File .\infra\bootstrap.ps1
 pnpm dev
 ```
 
 As decisões técnicas e práticas de desenvolvimento estão em `AGENTS.md`.
+O passo a passo de homologação está em `docs/mvp-local-runbook.md`.

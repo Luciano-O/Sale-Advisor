@@ -59,6 +59,6 @@ export class OutboxDispatcher implements OnModuleInit, OnApplicationShutdown {
 
   async onApplicationShutdown() {
     if (this.timer) clearInterval(this.timer);
-    await this.connection.client.end();
+    await this.connection.close();
   }
 }

@@ -344,7 +344,7 @@ export class PostgresApiRepository implements ApiRepository {
   }
 
   async onApplicationShutdown() {
-    await this.connection.client.end();
+    await this.connection.close();
   }
 }
 

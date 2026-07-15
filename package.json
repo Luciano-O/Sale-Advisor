@@ -15,13 +15,13 @@
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings=0",
     "test": "corepack pnpm -r --if-present test",
-    "test:e2e": "corepack pnpm -r --if-present test:e2e",
+    "test:e2e": "corepack pnpm build && corepack pnpm --filter @sale-advisor/admin test:e2e && corepack pnpm --filter @sale-advisor/e2e test:e2e",
     "typecheck": "corepack pnpm -r --if-present typecheck"
   },
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@10.0.0",
+  "packageManager": "pnpm@11.7.0",
   "devDependencies": {
     "@eslint/js": "^9.31.0",
     "@types/node": "^26.1.0",

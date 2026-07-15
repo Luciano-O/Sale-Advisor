@@ -1,0 +1,17 @@
+{
+  "name": "@sale-advisor/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:e2e": "tsx src/local-journey.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "@sale-advisor/config": "workspace:*",
+    "tsx": "^4.20.3"
+  }
+}

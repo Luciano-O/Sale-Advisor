@@ -301,7 +301,7 @@ export class PersistentPipelineService implements OnApplicationShutdown {
   }
 
   async onApplicationShutdown() {
-    await this.connection.client.end();
+    await this.connection.close();
   }
 }
 
