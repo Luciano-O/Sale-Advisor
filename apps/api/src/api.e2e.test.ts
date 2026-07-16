@@ -22,6 +22,19 @@ describe("MVP API", () => {
     expect(JSON.stringify(response.body)).not.toContain(ADMIN_KEY);
   });
 
+  it("allows the local admin origin to preflight authenticated requests", async () => {
+    const response = await request(context.app.getHttpServer())
+      .options("/v1/admin/messages")
+      .set("origin", "http://localhost:5173")
+      .set("access-control-request-method", "POST")
+      .set("access-control-request-headers", "content-type,x-admin-key")
+      .expect(204);
+
+    expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
+    expect(response.headers["access-control-allow-methods"]).toContain("POST");
+    expect(response.headers["access-control-allow-headers"]).toContain("x-admin-key");
+  });
+
   it("requires the admin key and uses the manual contract with notifications enabled", async () => {
     const payload = {
       text: "RTX 4060 8GB por R$ 1.899 no Pix",
