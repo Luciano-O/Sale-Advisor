@@ -3,3 +3,4 @@ dist
 coverage
 .expo
 pnpm-lock.yaml
+packages/database/migrations/meta

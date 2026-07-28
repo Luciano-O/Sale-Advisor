@@ -37,7 +37,9 @@ export function normalizeStore(input: NormalizeStoreInput): NormalizedStore {
   const domain = normalizeDomain(input.normalizedUrl?.domain ?? input.storeDomain ?? "");
   const parsedUrl = input.normalizedUrl ? new URL(input.normalizedUrl.normalizedUrl) : null;
   const adapter = STORE_ADAPTERS.find((candidate) => candidate.domain === domain);
-  const match = parsedUrl ? adapter?.extractStoreProductId(parsedUrl) ?? extractGenericStoreProductId(parsedUrl) : null;
+  const match = parsedUrl
+    ? (adapter?.extractStoreProductId(parsedUrl) ?? extractGenericStoreProductId(parsedUrl))
+    : null;
 
   return {
     domain,
@@ -60,7 +62,10 @@ function extractGenericStoreProductId(url: URL): StoreProductIdMatch | null {
   return extractFirstQueryParam(url, GENERIC_QUERY_ID_PARAMS);
 }
 
-function extractFirstQueryParam(url: URL, params: readonly QueryIdParam[]): StoreProductIdMatch | null {
+function extractFirstQueryParam(
+  url: URL,
+  params: readonly QueryIdParam[]
+): StoreProductIdMatch | null {
   for (const param of params) {
     const match = extractQueryParam(url, param);
 

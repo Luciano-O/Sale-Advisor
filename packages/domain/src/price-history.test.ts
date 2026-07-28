@@ -38,7 +38,11 @@ describe("price history scoring", () => {
   });
 
   it("uses only previous snapshots from the same product", () => {
-    const current = offer({ id: "current", firstSeenAt: "2026-07-10T10:00:00.000Z", amountInCents: 170000 });
+    const current = offer({
+      id: "current",
+      firstSeenAt: "2026-07-10T10:00:00.000Z",
+      amountInCents: 170000
+    });
     const snapshots = createPriceSnapshots([
       current,
       offer({ id: "previous", firstSeenAt: "2026-07-09T10:00:00.000Z", amountInCents: 200000 }),
@@ -60,13 +64,21 @@ describe("price history scoring", () => {
   });
 
   it("calculates lowest prices for 7d, 30d and 90d windows", () => {
-    const current = offer({ id: "current", firstSeenAt: "2026-07-10T10:00:00.000Z", amountInCents: 150000 });
+    const current = offer({
+      id: "current",
+      firstSeenAt: "2026-07-10T10:00:00.000Z",
+      amountInCents: 150000
+    });
     const snapshots = createPriceSnapshots([
       current,
       offer({ id: "six-days", firstSeenAt: "2026-07-04T10:00:00.000Z", amountInCents: 210000 }),
       offer({ id: "twenty-days", firstSeenAt: "2026-06-20T10:00:00.000Z", amountInCents: 200000 }),
       offer({ id: "sixty-days", firstSeenAt: "2026-05-11T10:00:00.000Z", amountInCents: 190000 }),
-      offer({ id: "ninety-five-days", firstSeenAt: "2026-04-06T10:00:00.000Z", amountInCents: 180000 })
+      offer({
+        id: "ninety-five-days",
+        firstSeenAt: "2026-04-06T10:00:00.000Z",
+        amountInCents: 180000
+      })
     ]);
 
     const metrics = calculatePriceHistoryMetrics(current, snapshots);
@@ -80,7 +92,11 @@ describe("price history scoring", () => {
   });
 
   it("calculates odd and even 30d medians", () => {
-    const oddCurrent = offer({ id: "odd-current", firstSeenAt: "2026-07-10T10:00:00.000Z", amountInCents: 90000 });
+    const oddCurrent = offer({
+      id: "odd-current",
+      firstSeenAt: "2026-07-10T10:00:00.000Z",
+      amountInCents: 90000
+    });
     const oddMetrics = calculatePriceHistoryMetrics(
       oddCurrent,
       createPriceSnapshots([
@@ -91,7 +107,11 @@ describe("price history scoring", () => {
       ])
     );
 
-    const evenCurrent = offer({ id: "even-current", firstSeenAt: "2026-07-10T10:00:00.000Z", amountInCents: 90000 });
+    const evenCurrent = offer({
+      id: "even-current",
+      firstSeenAt: "2026-07-10T10:00:00.000Z",
+      amountInCents: 90000
+    });
     const evenMetrics = calculatePriceHistoryMetrics(
       evenCurrent,
       createPriceSnapshots([
@@ -108,7 +128,11 @@ describe("price history scoring", () => {
   });
 
   it("calculates signed deviation against the 30d median", () => {
-    const current = offer({ id: "current", firstSeenAt: "2026-07-10T10:00:00.000Z", amountInCents: 150000 });
+    const current = offer({
+      id: "current",
+      firstSeenAt: "2026-07-10T10:00:00.000Z",
+      amountInCents: 150000
+    });
     const metrics = calculatePriceHistoryMetrics(
       current,
       createPriceSnapshots([
@@ -123,7 +147,11 @@ describe("price history scoring", () => {
   });
 
   it("keeps the label normal when 30d history is insufficient", () => {
-    const current = offer({ id: "current", firstSeenAt: "2026-07-10T10:00:00.000Z", amountInCents: 150000 });
+    const current = offer({
+      id: "current",
+      firstSeenAt: "2026-07-10T10:00:00.000Z",
+      amountInCents: 150000
+    });
     const result = scoreOffer(
       current,
       createPriceSnapshots([
@@ -161,7 +189,9 @@ describe("price history scoring", () => {
       "history-3",
       "current"
     ]);
-    expect(result.scoredOffers.find((scoredOffer) => scoredOffer.offer.id === "current")).toMatchObject({
+    expect(
+      result.scoredOffers.find((scoredOffer) => scoredOffer.offer.id === "current")
+    ).toMatchObject({
       label: "muito_boa",
       metrics: {
         medianPriceIn30dInCents: 200000,
@@ -175,15 +205,31 @@ describe("price history scoring", () => {
 });
 
 function labelForCurrentPrice(amountInCents: number) {
-  const current = offer({ id: `current-${amountInCents}`, firstSeenAt: "2026-07-10T10:00:00.000Z", amountInCents });
+  const current = offer({
+    id: `current-${amountInCents}`,
+    firstSeenAt: "2026-07-10T10:00:00.000Z",
+    amountInCents
+  });
 
   return scoreOffer(
     current,
     createPriceSnapshots([
       current,
-      offer({ id: `history-1-${amountInCents}`, firstSeenAt: "2026-07-01T10:00:00.000Z", amountInCents: 200000 }),
-      offer({ id: `history-2-${amountInCents}`, firstSeenAt: "2026-07-02T10:00:00.000Z", amountInCents: 200000 }),
-      offer({ id: `history-3-${amountInCents}`, firstSeenAt: "2026-07-03T10:00:00.000Z", amountInCents: 200000 })
+      offer({
+        id: `history-1-${amountInCents}`,
+        firstSeenAt: "2026-07-01T10:00:00.000Z",
+        amountInCents: 200000
+      }),
+      offer({
+        id: `history-2-${amountInCents}`,
+        firstSeenAt: "2026-07-02T10:00:00.000Z",
+        amountInCents: 200000
+      }),
+      offer({
+        id: `history-3-${amountInCents}`,
+        firstSeenAt: "2026-07-03T10:00:00.000Z",
+        amountInCents: 200000
+      })
     ])
   ).label;
 }

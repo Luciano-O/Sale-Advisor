@@ -5,8 +5,7 @@ import { buildOfferCandidate } from "./offer-candidate.js";
 describe("buildOfferCandidate", () => {
   it("preserves raw text and includes detected offer signals", () => {
     const candidate = buildOfferCandidate({
-      rawText:
-        "RTX 4060 Ti por R$ 1.999,90 no Pix https://LOJA.com/gpu?utm_source=tg&sku=4060ti",
+      rawText: "RTX 4060 Ti por R$ 1.999,90 no Pix https://LOJA.com/gpu?utm_source=tg&sku=4060ti",
       capturedAt: new Date("2026-07-02T12:00:00.000Z")
     });
 
@@ -17,10 +16,10 @@ describe("buildOfferCandidate", () => {
     expect(candidate.priceBucketInCents).toBe(195000);
   });
 
-
   it("fills normalized store and store product id from URL", () => {
     const candidate = buildOfferCandidate({
-      rawText: "RTX 4060 por R$ 1.899,00 https://www.loja-a.example.br/produto?sku=RTX4060-8GB&utm_source=tg",
+      rawText:
+        "RTX 4060 por R$ 1.899,00 https://www.loja-a.example.br/produto?sku=RTX4060-8GB&utm_source=tg",
       capturedAt: "2026-07-02T12:00:00.000Z"
     });
 

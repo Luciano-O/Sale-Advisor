@@ -23,7 +23,9 @@ describe("scoreConsolidatedOffers", () => {
       "history-3",
       "current"
     ]);
-    expect(result.scoredOffers.find((scoredOffer) => scoredOffer.offer.id === "current")).toMatchObject({
+    expect(
+      result.scoredOffers.find((scoredOffer) => scoredOffer.offer.id === "current")
+    ).toMatchObject({
       label: "muito_boa",
       offer: {
         id: "current",
@@ -60,10 +62,26 @@ describe("processScoringFixtureFile", () => {
       `${JSON.stringify(
         {
           offers: [
-            offer({ id: "current", firstSeenAt: "2026-07-10T10:00:00.000Z", amountInCents: 170000 }),
-            offer({ id: "history-1", firstSeenAt: "2026-07-01T10:00:00.000Z", amountInCents: 200000 }),
-            offer({ id: "history-2", firstSeenAt: "2026-07-02T10:00:00.000Z", amountInCents: 200000 }),
-            offer({ id: "history-3", firstSeenAt: "2026-07-03T10:00:00.000Z", amountInCents: 200000 })
+            offer({
+              id: "current",
+              firstSeenAt: "2026-07-10T10:00:00.000Z",
+              amountInCents: 170000
+            }),
+            offer({
+              id: "history-1",
+              firstSeenAt: "2026-07-01T10:00:00.000Z",
+              amountInCents: 200000
+            }),
+            offer({
+              id: "history-2",
+              firstSeenAt: "2026-07-02T10:00:00.000Z",
+              amountInCents: 200000
+            }),
+            offer({
+              id: "history-3",
+              firstSeenAt: "2026-07-03T10:00:00.000Z",
+              amountInCents: 200000
+            })
           ]
         },
         null,
@@ -76,14 +94,20 @@ describe("processScoringFixtureFile", () => {
     const written = JSON.parse(await readFile(outputPath, "utf8")) as unknown;
 
     expect(written).toEqual(result);
-    expect(result.scoredOffers.find((scoredOffer) => scoredOffer.offer.id === "current")?.label).toBe("excepcional");
+    expect(
+      result.scoredOffers.find((scoredOffer) => scoredOffer.offer.id === "current")?.label
+    ).toBe("excepcional");
   });
 
   it("rejects invalid consolidated offer fixtures with a clear error", async () => {
     const directory = await mkdtemp(join(tmpdir(), "sale-advisor-scoring-invalid-"));
     const inputPath = join(directory, "consolidated-offers.json");
 
-    await writeFile(inputPath, `${JSON.stringify({ offers: [{ id: "missing-fields" }] })}\n`, "utf8");
+    await writeFile(
+      inputPath,
+      `${JSON.stringify({ offers: [{ id: "missing-fields" }] })}\n`,
+      "utf8"
+    );
 
     await expect(processScoringFixtureFile({ inputPath })).rejects.toThrow(
       "consolidated offer at index 0 must include product, price, store and timestamps"

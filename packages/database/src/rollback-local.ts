@@ -1,7 +1,7 @@
 import { createDatabase } from "./client.js";
+import { assertSafeE2EEnvironment } from "./e2e-safety.js";
 
-if (process.env.NODE_ENV === "production")
-  throw new Error("Local rollback is disabled in production");
+assertSafeE2EEnvironment();
 const connection = createDatabase();
 const { client } = connection;
 await client.unsafe(`

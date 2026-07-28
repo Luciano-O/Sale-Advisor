@@ -8,8 +8,10 @@ import postgres from "postgres";
 
 const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const apiUrl = "http://127.0.0.1:3100";
-const databaseUrl = "postgresql://postgres:postgres@127.0.0.1:5432/sale_advisor";
+const databaseUrl = "postgresql://postgres:postgres@127.0.0.1:55432/sale_advisor_e2e";
 const adminKey = "local-e2e-admin-key-with-32-characters";
+const e2eCompose = "infra/compose.e2e.yaml";
+const e2eProject = "sale-advisor-e2e";
 const pnpmCli = process.env.npm_execpath;
 const docker =
   process.platform === "win32" &&
@@ -19,7 +21,7 @@ const docker =
 const environment = {
   ...process.env,
   DATABASE_URL: databaseUrl,
-  REDIS_URL: "redis://127.0.0.1:6379",
+  REDIS_URL: "redis://127.0.0.1:56379",
   API_PORT: "3100",
   ADMIN_API_KEY: adminKey,
   NOTIFICATION_PROVIDER: "fake",
@@ -88,8 +90,19 @@ function start(entry: string): ChildProcess {
   });
 }
 
-function stop(process: ChildProcess | undefined) {
-  if (process && !process.killed) process.kill();
+async function stop(child: ChildProcess | undefined) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  child.kill();
+  await new Promise<void>((resolve) => {
+    const timeout = setTimeout(() => {
+      child.kill("SIGKILL");
+      resolve();
+    }, 5_000);
+    child.once("exit", () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+  });
 }
 
 let api: ChildProcess | undefined;
@@ -97,7 +110,16 @@ let worker: ChildProcess | undefined;
 let sql: ReturnType<typeof postgres> | undefined;
 
 try {
-  command(docker, ["compose", "-f", "infra/compose.yaml", "up", "-d", "--wait"]);
+  command(docker, [
+    "compose",
+    "--project-name",
+    e2eProject,
+    "-f",
+    e2eCompose,
+    "up",
+    "-d",
+    "--wait"
+  ]);
   pnpm(["db:rollback:local"]);
   pnpm(["db:migrate"]);
   pnpm(["db:seed"]);
@@ -257,7 +279,20 @@ try {
   assert.deepEqual(traces[0], { parses: 1, mentions: 1, snapshots: 1 });
   console.log(`Local MVP journey passed: message=${imported.messageId} offer=${offer.id}`);
 } finally {
-  if (sql) await sql.end({ timeout: 2 });
-  stop(worker);
-  stop(api);
+  try {
+    if (sql) await sql.end({ timeout: 2 });
+  } catch {
+    // Continue cleanup even if a database connection cannot close cleanly.
+  }
+  await Promise.allSettled([stop(worker), stop(api)]);
+  command(docker, [
+    "compose",
+    "--project-name",
+    e2eProject,
+    "-f",
+    e2eCompose,
+    "down",
+    "--volumes",
+    "--remove-orphans"
+  ]);
 }

@@ -4,27 +4,33 @@
   "version": "0.1.0",
   "description": "Monorepo para app de monitoramento de promocoes e alertas de ofertas.",
   "scripts": {
+    "android:prepare": "powershell -ExecutionPolicy Bypass -File ./infra/android-acceptance.ps1 -Visible",
     "build": "corepack pnpm -r --if-present build",
-    "bootstrap": "corepack pnpm install && corepack pnpm db:migrate",
+    "bootstrap": "powershell -ExecutionPolicy Bypass -File ./infra/bootstrap.ps1",
     "db:generate": "corepack pnpm --filter @sale-advisor/database db:generate",
     "db:migrate": "corepack pnpm --filter @sale-advisor/database db:migrate",
     "db:rollback:local": "corepack pnpm --filter @sale-advisor/database db:rollback:local",
     "db:seed": "corepack pnpm --filter @sale-advisor/database db:seed",
     "dev": "corepack pnpm -r --parallel --if-present dev",
+    "doctor": "node scripts/doctor.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings=0",
-    "test": "corepack pnpm -r --if-present test",
+    "preflight": "node scripts/preflight.mjs",
+    "test": "vitest run scripts/preflight.test.ts && corepack pnpm -r --if-present test",
     "test:e2e": "corepack pnpm build && corepack pnpm --filter @sale-advisor/admin test:e2e && corepack pnpm --filter @sale-advisor/e2e test:e2e",
-    "typecheck": "corepack pnpm -r --if-present typecheck"
+    "typecheck": "corepack pnpm -r --if-present typecheck",
+    "verify": "corepack pnpm format:check && corepack pnpm lint && corepack pnpm test && corepack pnpm typecheck && corepack pnpm build",
+    "verify:baseline": "corepack pnpm preflight && corepack pnpm verify && corepack pnpm test:e2e"
   },
   "engines": {
-    "node": ">=20"
+    "node": "24.x",
+    "pnpm": "11.7.0"
   },
   "packageManager": "pnpm@11.7.0",
   "devDependencies": {
     "@eslint/js": "^9.31.0",
-    "@types/node": "^26.1.0",
+    "@types/node": "^24.0.0",
     "eslint": "^9.31.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^16.3.0",

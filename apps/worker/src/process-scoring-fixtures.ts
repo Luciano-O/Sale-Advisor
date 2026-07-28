@@ -70,7 +70,9 @@ function parseConsolidatedOffer(value: unknown, index: number): ConsolidatedOffe
     typeof value["firstSeenAt"] !== "string" ||
     typeof value["lastSeenAt"] !== "string"
   ) {
-    throw new TypeError(`consolidated offer at index ${index} must include product, price, store and timestamps`);
+    throw new TypeError(
+      `consolidated offer at index ${index} must include product, price, store and timestamps`
+    );
   }
 
   return {
@@ -126,7 +128,9 @@ function parseStore(value: Record<string, unknown>, index: number): NormalizedSt
   const storeProductIdSource = value["storeProductIdSource"];
 
   if (!isStoreProductIdSource(storeProductIdSource)) {
-    throw new TypeError(`consolidated offer at index ${index} has invalid store.storeProductIdSource`);
+    throw new TypeError(
+      `consolidated offer at index ${index} has invalid store.storeProductIdSource`
+    );
   }
 
   return {
@@ -147,7 +151,11 @@ function parseString(value: Record<string, unknown>, field: string, index: numbe
   return fieldValue;
 }
 
-function parseNullableString(value: Record<string, unknown>, field: string, index: number): string | null {
+function parseNullableString(
+  value: Record<string, unknown>,
+  field: string,
+  index: number
+): string | null {
   const fieldValue = value[field];
 
   if (fieldValue === null) {
@@ -155,7 +163,9 @@ function parseNullableString(value: Record<string, unknown>, field: string, inde
   }
 
   if (typeof fieldValue !== "string") {
-    throw new TypeError(`consolidated offer at index ${index} must include string or null ${field}`);
+    throw new TypeError(
+      `consolidated offer at index ${index} must include string or null ${field}`
+    );
   }
 
   return fieldValue;
@@ -175,7 +185,9 @@ function parseIsoDate(value: string, field: string, index: number): string {
   const timestamp = Date.parse(value);
 
   if (Number.isNaN(timestamp)) {
-    throw new TypeError(`consolidated offer at index ${index} must include valid ISO date ${field}`);
+    throw new TypeError(
+      `consolidated offer at index ${index} must include valid ISO date ${field}`
+    );
   }
 
   return new Date(timestamp).toISOString();
@@ -186,7 +198,9 @@ function isPaymentMethod(value: unknown): value is PaymentMethod {
 }
 
 function isStoreProductIdSource(value: unknown): value is StoreProductIdSource {
-  return typeof value === "string" && STORE_PRODUCT_ID_SOURCES.includes(value as StoreProductIdSource);
+  return (
+    typeof value === "string" && STORE_PRODUCT_ID_SOURCES.includes(value as StoreProductIdSource)
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -195,5 +209,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const result = await processScoringFixtureFile();
-  console.log(JSON.stringify({ priceSnapshots: result.priceSnapshots.length, scoredOffers: result.scoredOffers.length }));
+  console.log(
+    JSON.stringify({
+      priceSnapshots: result.priceSnapshots.length,
+      scoredOffers: result.scoredOffers.length
+    })
+  );
 }
