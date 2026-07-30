@@ -11,6 +11,10 @@ import {
   ScoreProcessor
 } from "./processors.js";
 import { PIPELINE_QUEUES } from "./queue-config.js";
+import { TelegramCollectorLifecycle } from "./telegram-collector-lifecycle.js";
+import { PostgresTelegramIngestRepository, TelegramIngestService } from "./telegram-ingest.js";
+import { TelegramIngestProcessor } from "./telegram-processor.js";
+import { TELEGRAM_INGEST_QUEUE } from "./telegram-queue.js";
 
 function redisConnection() {
   const url = new URL(process.env.REDIS_URL ?? "redis://localhost:6379");
@@ -26,7 +30,7 @@ function redisConnection() {
 @Module({
   imports: [
     BullModule.forRoot({ connection: redisConnection(), defaultJobOptions: { attempts: 5 } }),
-    ...PIPELINE_QUEUES.map((name) => BullModule.registerQueue({ name }))
+    ...[TELEGRAM_INGEST_QUEUE, ...PIPELINE_QUEUES].map((name) => BullModule.registerQueue({ name }))
   ],
   providers: [
     { provide: NOTIFICATION_PROVIDER, useFactory: () => createNotificationProvider() },
@@ -36,6 +40,15 @@ function redisConnection() {
       useFactory: (provider: ReturnType<typeof createNotificationProvider>) =>
         new PersistentPipelineService(provider)
     },
+    PostgresTelegramIngestRepository,
+    {
+      provide: TelegramIngestService,
+      inject: [PostgresTelegramIngestRepository],
+      useFactory: (repository: PostgresTelegramIngestRepository) =>
+        new TelegramIngestService(repository)
+    },
+    TelegramCollectorLifecycle,
+    TelegramIngestProcessor,
     OutboxDispatcher,
     ParseProcessor,
     ConsolidateProcessor,

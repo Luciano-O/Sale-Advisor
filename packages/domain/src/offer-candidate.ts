@@ -3,12 +3,17 @@ import { calculatePriceBucket } from "./price-bucket.js";
 import { parsePriceQuotes, selectEffectivePrice } from "./price.js";
 import { normalizeStore, normalizeStoreDomain } from "./store.js";
 import type { BuildOfferCandidateInput, OfferCandidate } from "./types.js";
-import { normalizeUrl } from "./url.js";
-
-const URL_PATTERN = /https?:\/\/\S+/i;
+import { extractHttpUrls, normalizeUrl, selectPrimaryOfferUrl } from "./url.js";
 
 export function buildOfferCandidate(input: BuildOfferCandidateInput): OfferCandidate {
-  const sourceUrl = input.url ?? extractFirstUrl(input.rawText);
+  const sourceUrls = Array.from(
+    new Set([
+      ...(input.url ? [input.url] : []),
+      ...(input.urls ?? []),
+      ...extractHttpUrls(input.rawText)
+    ])
+  );
+  const sourceUrl = selectPrimaryOfferUrl(sourceUrls);
   const prices = parsePriceQuotes(input.rawText);
   const effectivePrice = selectEffectivePrice(prices);
   const price = effectivePrice
@@ -30,6 +35,7 @@ export function buildOfferCandidate(input: BuildOfferCandidateInput): OfferCandi
   return {
     rawText: input.rawText,
     capturedAt: new Date(input.capturedAt).toISOString(),
+    sourceUrls,
     sourceUrl,
     normalizedUrl,
     store,
@@ -67,9 +73,4 @@ function extractBoardBrand(text: string): string | null {
 
 function extractCoupon(text: string): string | null {
   return text.match(/\bcupom\s*[:=-]?\s*([a-z0-9_-]{2,32})\b/i)?.[1]?.toUpperCase() ?? null;
-}
-
-function extractFirstUrl(text: string): string | null {
-  const match = text.match(URL_PATTERN);
-  return match?.[0] ?? null;
 }

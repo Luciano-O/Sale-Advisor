@@ -1,8 +1,8 @@
 # Homologação local do MVP
 
-Este runbook valida a fatia vertical sem Telegram: cadastro administrativo, persistência bruta,
-processamento assíncrono, deduplicação, scoring, feed, notificação fake, eventos anônimos e app
-Android offline-first.
+Este runbook valida cadastro administrativo, persistência bruta, processamento assíncrono,
+deduplicação, scoring, feed, notificação fake, eventos anônimos e app Android offline-first. A
+coleta Telegram por conta autorizada é opcional e fica desabilitada no aceite automatizado.
 
 ## Pré-requisitos
 
@@ -46,11 +46,74 @@ O admin usa a chave de `.env` em `x-admin-key`; a interface a mantém apenas em
 `sessionStorage`. API, admin e mobile usam respectivamente as portas/configurações declaradas em
 `.env` e nos scripts de cada workspace.
 
+## Coleta Telegram com conta autorizada
+
+O worker usa MTProto e não expõe endpoint HTTP de coleta. Obtenha `api_id` e `api_hash` em
+`https://my.telegram.org` com a conta que já participa dos grupos/canais desejados. Carregue os
+valores somente no terminal local e gere uma sessão:
+
+```powershell
+$env:TELEGRAM_API_ID="<api_id>"
+$env:TELEGRAM_API_HASH="<api_hash>"
+corepack pnpm --filter @sale-advisor/worker telegram:login
+```
+
+O comando solicita telefone, código e senha 2FA quando aplicável. Copie o
+`TELEGRAM_SESSION=...` resultante para `.env`, que é ignorado pelo Git. A sessão concede acesso à
+conta; não a envie a logs, tickets ou commits. Se houver exposição, encerre a sessão em
+**Telegram > Configurações > Dispositivos** e gere outra.
+
+Configure a allowlist e habilite a integração:
+
+```dotenv
+TELEGRAM_ENABLED=true
+TELEGRAM_CHATS=@canal_publico,-1001234567890
+TELEGRAM_INITIAL_HISTORY_LIMIT=100
+```
+
+Recarregue `.env` no PowerShell e inicie PostgreSQL, Redis e worker. Referências inválidas ou
+credenciais ausentes falham imediatamente sem imprimir os segredos. Falhas transitórias de conexão
+são retentadas com backoff de até 60 segundos.
+
+No primeiro startup de cada chat, o worker enfileira as mensagens mais recentes até o limite
+configurado, em ordem cronológica e com notificações desabilitadas. Depois, usa o maior ID
+persistido como cursor: mensagens perdidas durante indisponibilidade e eventos ao vivo são
+elegíveis para notificação. Corridas entre histórico e evento ao vivo são absorvidas pelo job ID e
+pela constraint de idempotência.
+
+### Smoke test do Telegram
+
+Envie uma mensagem nova em um chat da allowlist, por exemplo com texto, preço e link de uma loja.
+Confirme a preservação bruta, URLs e estado do pipeline:
+
+```sql
+select s.name, rm.external_id, rm.text, rm.supplied_url,
+  rm.original_payload -> 'capturedUrls' as captured_urls, rm.status
+from raw_messages rm
+join sources s on s.id = rm.source_id
+where s.kind = 'telegram'
+order by rm.captured_at desc
+limit 10;
+
+select topic, aggregate_id, version, published_at, attempts, last_error
+from outbox_events
+where topic = 'raw-message.created'
+order by created_at desc
+limit 10;
+```
+
+O esperado é uma única `raw_message` por `peerId + messageId`, payload e URLs originais presentes,
+uma única outbox versão 1 e progressão do status para `completed` ou `partial`. Repetir o mesmo job
+não deve criar outra mensagem ou outbox.
+
 ## Verificação automatizada
 
 ```powershell
 corepack pnpm verify:baseline
 ```
+
+O aceite automatizado mantém `TELEGRAM_ENABLED=false`; CI não usa rede, conta ou credenciais reais
+do Telegram. Os testes do coletor usam um cliente falso.
 
 `test:e2e` primeiro gera os artefatos, executa a jornada Playwright do admin e depois sobe o Compose
 efêmero `sale-advisor-e2e`, com PostgreSQL `sale_advisor_e2e` em `55432` e Redis em `56379`, para
@@ -124,6 +187,6 @@ fluxo de rollback nesta baseline.
 
 ## Limites deste aceite
 
-O MVP não instala biblioteca, credencial ou coletor Telegram; `telegram` existe apenas como valor
-reservado no modelo para compatibilidade futura e em fixtures de normalização de tracking. Não há
-login mobile, deploy público, publicação em loja, scraping ou integração com encurtadores.
+A coleta Telegram considera somente mensagens novas; edições e exclusões ainda não possuem modelo
+de revisões. Não há download de mídia, login mobile, deploy público, publicação em loja, scraping
+de páginas de lojas ou integração com encurtadores.

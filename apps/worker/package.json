@@ -8,6 +8,7 @@
     "build": "corepack pnpm --filter @sale-advisor/domain build && corepack pnpm --filter @sale-advisor/database build && tsc -p tsconfig.json",
     "process:fixtures": "corepack pnpm build && node dist/index.js",
     "score:fixtures": "corepack pnpm build && node dist/process-scoring-fixtures.js",
+    "telegram:login": "tsx src/telegram-login.ts",
     "test": "vitest run --coverage",
     "typecheck": "corepack pnpm --filter @sale-advisor/domain build && tsc -p tsconfig.json --noEmit",
     "dev": "tsx watch src/main.ts",
@@ -23,7 +24,8 @@
     "firebase-admin": "^13.4.0",
     "ioredis": "^5.7.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "teleproto": "^1.228.4"
   },
   "devDependencies": {
     "@sale-advisor/config": "workspace:*",

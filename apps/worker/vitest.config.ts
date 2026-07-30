@@ -18,6 +18,10 @@ export default defineConfig({
         "src/pipeline.ts",
         "src/notification.ts",
         "src/queue-config.ts",
+        "src/telegram-config.ts",
+        "src/telegram-message.ts",
+        "src/telegram-queue.ts",
+        "src/telegram-collector.ts",
         "src/process-fixtures.ts",
         "src/process-scoring-fixtures.ts"
       ],
