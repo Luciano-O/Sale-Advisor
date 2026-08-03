@@ -11,11 +11,18 @@ import {
   OffersController
 } from "./controllers.js";
 import { ADMIN_API_KEY, API_REPOSITORY, type ApiRepository } from "./repository.js";
-import { RateLimitGuard } from "./rate-limit.guard.js";
+import {
+  InMemoryRateLimitStore,
+  RateLimitGuard,
+  type RateLimitOptions,
+  type RateLimitStore
+} from "./rate-limit.guard.js";
 
 export interface ApiModuleOptions {
   repository: ApiRepository;
   adminKey: string;
+  rateLimitStore?: RateLimitStore;
+  rateLimitOptions?: RateLimitOptions;
 }
 
 @Module({})
@@ -36,7 +43,11 @@ export class ApiModule {
         AdminKeyGuard,
         {
           provide: APP_GUARD,
-          useFactory: () => new RateLimitGuard({ limit: 120, windowMs: 60_000 })
+          useFactory: () =>
+            new RateLimitGuard(
+              options.rateLimitStore ?? new InMemoryRateLimitStore(),
+              options.rateLimitOptions ?? { limit: 120, windowSeconds: 60 }
+            )
         },
         { provide: API_REPOSITORY, useValue: options.repository },
         { provide: ADMIN_API_KEY, useValue: options.adminKey }

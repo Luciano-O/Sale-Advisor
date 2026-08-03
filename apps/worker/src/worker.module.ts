@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
+import { readWorkerConfig } from "@sale-advisor/config";
 
 import { createNotificationProvider, NOTIFICATION_PROVIDER } from "./notification.js";
 import { OutboxDispatcher } from "./outbox-dispatcher.js";
@@ -17,8 +18,10 @@ import { PostgresTelegramIngestRepository, TelegramIngestService } from "./teleg
 import { TelegramIngestProcessor } from "./telegram-processor.js";
 import { TELEGRAM_INGEST_QUEUE } from "./telegram-queue.js";
 
+const runtimeConfig = readWorkerConfig();
+
 function redisConnection() {
-  const url = new URL(process.env.REDIS_URL ?? "redis://localhost:6379");
+  const url = new URL(runtimeConfig.redisUrl);
   return {
     host: url.hostname,
     port: Number(url.port || 6379),
@@ -34,7 +37,11 @@ function redisConnection() {
     ...[TELEGRAM_INGEST_QUEUE, ...PIPELINE_QUEUES].map((name) => BullModule.registerQueue({ name }))
   ],
   providers: [
-    { provide: NOTIFICATION_PROVIDER, useFactory: () => createNotificationProvider() },
+    {
+      provide: NOTIFICATION_PROVIDER,
+      useFactory: () =>
+        createNotificationProvider({ NOTIFICATION_PROVIDER: runtimeConfig.notificationProvider })
+    },
     {
       provide: PersistentPipelineService,
       inject: [NOTIFICATION_PROVIDER],

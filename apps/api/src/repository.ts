@@ -47,6 +47,11 @@ export interface IntegrationHealth {
   lastError: Record<string, unknown> | null;
 }
 
+export interface RuntimeHealth {
+  checks: { database: "up"; redis: "up" };
+  outboxPending: number;
+}
+
 export interface ApiRepository {
   readonly kind: string;
   importMessages(request: ImportRequest): Promise<ImportResult>;
@@ -74,7 +79,7 @@ export interface ApiRepository {
       payload?: Record<string, string | number | boolean | null> | undefined;
     }>
   ): Promise<number>;
-  health(): Promise<{ outboxPending: number }>;
+  health(): Promise<RuntimeHealth>;
   adminDashboard(): Promise<Record<string, unknown>>;
   adminIntegrations(): Promise<{ integrations: IntegrationHealth[] }>;
   adminList(resource: "messages" | "offers" | "products" | "sources" | "audit"): Promise<unknown[]>;
@@ -186,7 +191,10 @@ export class InMemoryApiRepository implements ApiRepository {
   }
 
   async health() {
-    return { outboxPending: this.outbox.length };
+    return {
+      checks: { database: "up" as const, redis: "up" as const },
+      outboxPending: this.outbox.length
+    };
   }
 
   async adminDashboard() {

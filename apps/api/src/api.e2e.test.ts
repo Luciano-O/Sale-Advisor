@@ -22,6 +22,49 @@ describe("MVP API", () => {
     expect(JSON.stringify(response.body)).not.toContain(ADMIN_KEY);
   });
 
+  it("separates liveness and readiness while preserving the legacy route", async () => {
+    await request(context.app.getHttpServer())
+      .get("/v1/health/live")
+      .expect(200, { status: "ok", service: "api" });
+    const ready = await request(context.app.getHttpServer()).get("/v1/health/ready").expect(200);
+    expect(ready.body).toMatchObject({
+      status: "ok",
+      checks: { database: "up", redis: "up" },
+      outboxPending: 0
+    });
+    const legacy = await request(context.app.getHttpServer()).get("/v1/health").expect(200);
+    expect(legacy.body).toEqual(ready.body);
+  });
+
+  it("returns sanitized readiness failure", async () => {
+    context.repository.health = async () => {
+      throw new Error("postgresql://postgres:secret@private-host/database");
+    };
+    const response = await request(context.app.getHttpServer()).get("/v1/health/ready").expect(503);
+    expect(response.body).toEqual({
+      status: "unavailable",
+      checks: { database: "down", redis: "down" }
+    });
+    expect(JSON.stringify(response.body)).not.toContain("secret");
+  });
+
+  it("propagates valid correlation ids and replaces invalid values", async () => {
+    const valid = "f6a67f0f-e908-44c6-a3dc-4fbaa3438bdb";
+    const propagated = await request(context.app.getHttpServer())
+      .get("/v1/health/live")
+      .set("x-correlation-id", valid)
+      .expect(200);
+    expect(propagated.headers["x-correlation-id"]).toBe(valid);
+
+    const generated = await request(context.app.getHttpServer())
+      .get("/v1/health/live")
+      .set("x-correlation-id", "not-a-uuid")
+      .expect(200);
+    expect(generated.headers["x-correlation-id"]).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+    );
+  });
+
   it("allows the local admin origin to preflight authenticated requests", async () => {
     const response = await request(context.app.getHttpServer())
       .options("/v1/admin/messages")

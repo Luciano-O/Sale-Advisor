@@ -6,7 +6,7 @@
   "scripts": {
     "android:prepare": "powershell -ExecutionPolicy Bypass -File ./infra/android-acceptance.ps1 -Visible",
     "build": "corepack pnpm -r --if-present build",
-    "build:test-dependencies": "corepack pnpm -r --filter @sale-advisor/contracts --filter @sale-advisor/domain --filter @sale-advisor/database --if-present build",
+    "build:test-dependencies": "corepack pnpm -r --filter @sale-advisor/config --filter @sale-advisor/shared --filter @sale-advisor/contracts --filter @sale-advisor/domain --filter @sale-advisor/database --if-present build",
     "bootstrap": "powershell -ExecutionPolicy Bypass -File ./infra/bootstrap.ps1",
     "db:generate": "corepack pnpm --filter @sale-advisor/database db:generate",
     "db:migrate": "corepack pnpm --filter @sale-advisor/database db:migrate",

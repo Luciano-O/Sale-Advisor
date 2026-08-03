@@ -194,10 +194,16 @@ export class PostgresApiRepository implements ApiRepository {
   }
 
   async health() {
-    const rows = await this.connection.client<
-      { count: number }[]
-    >`select count(*)::int as count from outbox_events where published_at is null`;
-    return { outboxPending: rows[0]?.count ?? 0 };
+    const [rows] = await Promise.all([
+      this.connection.client<
+        { count: number }[]
+      >`select count(*)::int as count from outbox_events where published_at is null`,
+      this.telemetryQueues[0]?.getJobCounts("waiting")
+    ]);
+    return {
+      checks: { database: "up" as const, redis: "up" as const },
+      outboxPending: rows[0]?.count ?? 0
+    };
   }
 
   async adminDashboard() {

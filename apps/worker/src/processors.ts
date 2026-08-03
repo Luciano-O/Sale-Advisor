@@ -1,6 +1,7 @@
 import { Inject } from "@nestjs/common";
 import { InjectQueue, Processor, WorkerHost } from "@nestjs/bullmq";
 import type { Job, Queue } from "bullmq";
+import { JsonStructuredLogger } from "@sale-advisor/shared";
 
 import { PersistentPipelineService } from "./persistent-pipeline.js";
 import { DEFAULT_JOB_OPTIONS, deterministicJobId } from "./queue-config.js";
@@ -11,17 +12,41 @@ export interface PipelineJobData {
   correlationId: string;
 }
 
+const workerLogger = new JsonStructuredLogger("worker", "info");
+
 abstract class PipelineProcessor extends WorkerHost {
   constructor(protected readonly pipeline: PersistentPipelineService) {
     super();
   }
   protected async run(job: Job<PipelineJobData>, operation: () => Promise<void>) {
+    const startedAt = Date.now();
+    workerLogger.info("job.started", {
+      queue: job.queueName,
+      jobId: job.id,
+      correlationId: job.data.correlationId,
+      attempt: job.attemptsMade + 1
+    });
     try {
       await operation();
+      workerLogger.info("job.completed", {
+        queue: job.queueName,
+        jobId: job.id,
+        correlationId: job.data.correlationId,
+        attempt: job.attemptsMade + 1,
+        durationMs: Date.now() - startedAt
+      });
     } catch (error) {
       if (job.attemptsMade + 1 >= (job.opts.attempts ?? DEFAULT_JOB_OPTIONS.attempts ?? 5)) {
         await this.pipeline.markFailed(job.data.rawMessageId, error);
       }
+      workerLogger.error("job.failed", {
+        queue: job.queueName,
+        jobId: job.id,
+        correlationId: job.data.correlationId,
+        attempt: job.attemptsMade + 1,
+        durationMs: Date.now() - startedAt,
+        errorCode: error instanceof Error ? error.name : "unknown_error"
+      });
       throw error;
     }
   }

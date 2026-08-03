@@ -10,6 +10,7 @@ import {
   Post,
   Put,
   Query,
+  ServiceUnavailableException,
   UseGuards
 } from "@nestjs/common";
 import {
@@ -62,9 +63,26 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
 export class HealthController {
   constructor(@Inject(API_REPOSITORY) private readonly repository: ApiRepository) {}
   @Get()
-  async getHealth() {
-    const health = await this.repository.health();
-    return { status: "ok", database: this.repository.kind, ...health };
+  getHealth() {
+    return this.getReadiness();
+  }
+
+  @Get("live")
+  getLiveness() {
+    return { status: "ok", service: "api" };
+  }
+
+  @Get("ready")
+  async getReadiness() {
+    try {
+      const health = await this.repository.health();
+      return { status: "ok", database: this.repository.kind, ...health };
+    } catch {
+      throw new ServiceUnavailableException({
+        status: "unavailable",
+        checks: { database: "down", redis: "down" }
+      });
+    }
   }
 }
 
