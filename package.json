@@ -1,7 +1,7 @@
 {
   "name": "sale-advisor",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Monorepo para app de monitoramento de promocoes e alertas de ofertas.",
   "scripts": {
     "android:prepare": "powershell -ExecutionPolicy Bypass -File ./infra/android-acceptance.ps1 -Visible",
