@@ -5,17 +5,18 @@ import { deduplicateOfferCandidates } from "./deduplication.js";
 import type { OfferCandidate } from "./types.js";
 
 describe("deduplicateOfferCandidates", () => {
-
   it("prioritizes domain, store product id and price over different normalized URLs", () => {
     const result = deduplicateOfferCandidates([
       candidate({
         rawMessageId: "raw-store-1",
-        rawText: "RTX 4060 por R$ 1.899,00 https://loja-a.example.br/produto/rtx-4060?sku=RTX4060-8GB&utm_source=tg",
+        rawText:
+          "RTX 4060 por R$ 1.899,00 https://loja-a.example.br/produto/rtx-4060?sku=RTX4060-8GB&utm_source=tg",
         capturedAt: "2026-07-02T10:00:00.000Z"
       }),
       candidate({
         rawMessageId: "raw-store-2",
-        rawText: "RTX 4060 por R$ 1.899,00 https://loja-a.example.br/oferta/especial?sku=RTX4060-8GB&fbclid=abc",
+        rawText:
+          "RTX 4060 por R$ 1.899,00 https://loja-a.example.br/oferta/especial?sku=RTX4060-8GB&fbclid=abc",
         capturedAt: "2026-07-02T11:00:00.000Z"
       })
     ]);
@@ -76,7 +77,10 @@ describe("deduplicateOfferCandidates", () => {
     expect(result.offers).toHaveLength(1);
     expect(result.offers[0]?.mentionCount).toBe(2);
     expect(result.offerMentions).toHaveLength(2);
-    expect(result.offerMentions.map((mention) => mention.offerId)).toEqual(["offer_0001", "offer_0001"]);
+    expect(result.offerMentions.map((mention) => mention.offerId)).toEqual([
+      "offer_0001",
+      "offer_0001"
+    ]);
   });
 
   it("deduplicates URLs that differ only by tracking parameters", () => {
@@ -133,7 +137,10 @@ describe("deduplicateOfferCandidates", () => {
     ]);
 
     expect(result.offers).toHaveLength(2);
-    expect(result.offerMentions.map((mention) => mention.offerId)).toEqual(["offer_0001", "offer_0002"]);
+    expect(result.offerMentions.map((mention) => mention.offerId)).toEqual([
+      "offer_0001",
+      "offer_0002"
+    ]);
   });
 
   it("creates a new offer when the price differs", () => {

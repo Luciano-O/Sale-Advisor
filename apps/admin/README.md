@@ -1,12 +1,18 @@
 # Admin
 
-Painel interno do Sale Advisor.
+Workspace React/Vite para operação e curadoria do MVP:
 
-Responsabilidades previstas:
+- dashboard do pipeline;
+- cadastro manual e importação JSON com preview;
+- mensagens brutas, parses e replay;
+- ofertas, score, merge e split;
+- produtos e aliases;
+- sources/stores e bloqueios;
+- auditoria administrativa.
 
-- revisar mensagens brutas.
-- corrigir produto canônico.
-- juntar ou separar ofertas duplicadas.
-- bloquear fontes ruins.
-- editar aliases.
-- auditar score de ofertas.
+A chave é solicitada ao abrir o painel e mantida somente em `sessionStorage`. Configure
+`VITE_API_URL` quando a API não estiver em `http://localhost:3000`.
+
+```powershell
+pnpm --filter @sale-advisor/admin dev
+```

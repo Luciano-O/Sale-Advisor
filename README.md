@@ -1,17 +1,34 @@
 # Sale Advisor
 
-Monorepo para um app de monitoramento de promoções. O MVP foca em placas de vídeo e usa grupos de Telegram como fonte inicial de ofertas.
+Monorepo para um app de monitoramento de promoções. O MVP local foca em placas de vídeo e usa
+cadastro manual/importação JSON; integração com Telegram não faz parte desta versão.
 
 ## Estrutura
 
 ```text
 apps/api      Backend HTTP
-apps/worker   Coleta, parsing, dedupe, scoring e notificações
-apps/mobile   App mobile
+apps/worker   Parsing, dedupe, scoring e notificações
+apps/mobile   App Android-first
 apps/admin    Painel interno
-packages      Código compartilhado
-infra         Infraestrutura e deploy
-docs          Documentação e decisões arquiteturais
+packages      Domínio, contratos, banco e código compartilhado
+infra         Infraestrutura local
+docs          Decisões arquiteturais
 ```
 
-As decisões técnicas e práticas de desenvolvimento do projeto estão em `AGENTS.md`.
+## Ambiente local
+
+Requisitos: Node.js 24.x, pnpm 11.7.0 e Docker Desktop com backend Linux ativo.
+
+```powershell
+Copy-Item .env.example .env
+powershell -ExecutionPolicy Bypass -File .\infra\bootstrap.ps1
+pnpm dev
+```
+
+Use `pnpm run doctor` para validar a baseline local e `pnpm run doctor -- --android` para incluir
+Java 21, Android SDK/API 36, build-tools 36 e um device ADB pronto. O `run` é obrigatório porque
+pnpm 11.7 reserva `doctor` para um comando interno. `pnpm verify:baseline` executa o mesmo aceite
+automatizado usado pela CI.
+
+As decisões técnicas e práticas de desenvolvimento estão em `AGENTS.md`.
+O passo a passo de homologação está em `docs/mvp-local-runbook.md`.

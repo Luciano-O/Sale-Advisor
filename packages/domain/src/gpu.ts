@@ -26,11 +26,18 @@ export function identifyGpuProduct(text: string): CanonicalGpuProduct | null {
     return null;
   }
 
+  const vramGb = extractVram(text);
   return {
-    id: match.id,
+    id: `${match.id}-${vramGb === null ? "unknown-vram" : `${vramGb}gb`}`,
     vendor: match.vendor,
-    model: match.model
+    model: match.model,
+    vramGb
   };
+}
+
+function extractVram(text: string): number | null {
+  const match = text.match(/\b(4|6|8|10|12|16|20|24)\s*gb\b/i);
+  return match?.[1] ? Number.parseInt(match[1], 10) : null;
 }
 
 function gpu(id: string, vendor: GpuVendor, model: string, pattern: RegExp): GpuDefinition {

@@ -50,17 +50,34 @@ export function calculatePriceHistoryMetrics(
   options: ScoreOptions = {}
 ): PriceHistoryMetrics {
   const scoringPolicy = options.scoringPolicy ?? DEFAULT_PRICE_SCORING_POLICY;
-  const snapshots7d = selectPreviousSnapshots(offer, snapshots, scoringPolicy.windowsDays.lowestPrice7d);
-  const snapshots30d = selectPreviousSnapshots(offer, snapshots, scoringPolicy.windowsDays.lowestPrice30d);
-  const snapshots90d = selectPreviousSnapshots(offer, snapshots, scoringPolicy.windowsDays.lowestPrice90d);
-  const medianPriceIn30dInCents = calculateMedian(snapshots30d.map((snapshot) => snapshot.amountInCents));
+  const snapshots7d = selectPreviousSnapshots(
+    offer,
+    snapshots,
+    scoringPolicy.windowsDays.lowestPrice7d
+  );
+  const snapshots30d = selectPreviousSnapshots(
+    offer,
+    snapshots,
+    scoringPolicy.windowsDays.lowestPrice30d
+  );
+  const snapshots90d = selectPreviousSnapshots(
+    offer,
+    snapshots,
+    scoringPolicy.windowsDays.lowestPrice90d
+  );
+  const medianPriceIn30dInCents = calculateMedian(
+    snapshots30d.map((snapshot) => snapshot.amountInCents)
+  );
 
   return {
     lowestPriceIn7dInCents: calculateLowestPrice(snapshots7d),
     lowestPriceIn30dInCents: calculateLowestPrice(snapshots30d),
     lowestPriceIn90dInCents: calculateLowestPrice(snapshots90d),
     medianPriceIn30dInCents,
-    deviationFromMedian30dPercent: calculateDeviationPercent(offer.price.amountInCents, medianPriceIn30dInCents),
+    deviationFromMedian30dPercent: calculateDeviationPercent(
+      offer.price.amountInCents,
+      medianPriceIn30dInCents
+    ),
     snapshotCount7d: snapshots7d.length,
     snapshotCount30d: snapshots30d.length,
     snapshotCount90d: snapshots90d.length,
@@ -70,14 +87,25 @@ export function calculatePriceHistoryMetrics(
   };
 }
 
-export function scoreOffer(offer: ConsolidatedOffer, snapshots: PriceSnapshot[], options: ScoreOptions = {}): ScoredOffer {
+export function scoreOffer(
+  offer: ConsolidatedOffer,
+  snapshots: PriceSnapshot[],
+  options: ScoreOptions = {}
+): ScoredOffer {
   const scoringPolicy = options.scoringPolicy ?? DEFAULT_PRICE_SCORING_POLICY;
   const metrics = calculatePriceHistoryMetrics(offer, snapshots, { scoringPolicy });
   const { label, reasons } = classifyOffer(offer, metrics, scoringPolicy);
+  const qualityScore = calculateQualityScore(offer, metrics);
+  const confidence =
+    metrics.snapshotCount30d >= 3 ? "high" : metrics.snapshotCount30d > 0 ? "medium" : "low";
+  if ((offer.storeReliability ?? 50) >= 75) reasons.push("trusted_store");
+  if ((offer.storeReliability ?? 50) <= 25) reasons.push("untrusted_store");
 
   return {
     offer,
     label,
+    qualityScore,
+    confidence,
     metrics,
     reasons,
     audit: {
@@ -89,7 +117,30 @@ export function scoreOffer(offer: ConsolidatedOffer, snapshots: PriceSnapshot[],
   };
 }
 
-export function scoreOffersWithPriceHistory(offers: ConsolidatedOffer[], options: ScoreOptions = {}): PriceScoringOutput {
+function calculateQualityScore(offer: ConsolidatedOffer, metrics: PriceHistoryMetrics): number {
+  const median = metrics.medianPriceIn30dInCents;
+  const discountPercent =
+    median && median > 0 ? Math.max(0, ((median - offer.price.amountInCents) / median) * 100) : 0;
+  const discountComponent = discountPercent * 5;
+  const mentionBonus = Math.min(10, offer.mentionCount * 2);
+  const lowestBonus =
+    (isCurrentLowest(offer, metrics.lowestPriceIn7dInCents) ? 3 : 0) +
+    (isCurrentLowest(offer, metrics.lowestPriceIn30dInCents) ? 4 : 0) +
+    (isCurrentLowest(offer, metrics.lowestPriceIn90dInCents) ? 5 : 0);
+  const reliability = Math.max(0, Math.min(100, offer.storeReliability ?? 50));
+  const reliabilityAdjustment = (reliability - 50) / 5;
+  return Math.round(
+    Math.max(
+      0,
+      Math.min(100, discountComponent + mentionBonus + lowestBonus + reliabilityAdjustment)
+    )
+  );
+}
+
+export function scoreOffersWithPriceHistory(
+  offers: ConsolidatedOffer[],
+  options: ScoreOptions = {}
+): PriceScoringOutput {
   const scoringPolicy = options.scoringPolicy ?? DEFAULT_PRICE_SCORING_POLICY;
   const sortedOffers = [...offers].sort(compareOffers);
   const priceSnapshots = createPriceSnapshots(sortedOffers);
@@ -106,14 +157,20 @@ function classifyOffer(
   metrics: PriceHistoryMetrics,
   scoringPolicy: PriceScoringPolicy
 ): { label: OfferScoreLabel; reasons: string[] } {
-  if (metrics.snapshotCount30d < scoringPolicy.minimumSnapshotsIn30d || metrics.medianPriceIn30dInCents === null) {
+  if (
+    metrics.snapshotCount30d < scoringPolicy.minimumSnapshotsIn30d ||
+    metrics.medianPriceIn30dInCents === null
+  ) {
     return {
       label: "normal",
       reasons: ["insufficient_history"]
     };
   }
 
-  const discountPercent = ((metrics.medianPriceIn30dInCents - offer.price.amountInCents) / metrics.medianPriceIn30dInCents) * 100;
+  const discountPercent =
+    ((metrics.medianPriceIn30dInCents - offer.price.amountInCents) /
+      metrics.medianPriceIn30dInCents) *
+    100;
   const reasons: string[] = [];
   let label: OfferScoreLabel = "normal";
 
@@ -145,7 +202,11 @@ function classifyOffer(
   return { label, reasons };
 }
 
-function selectPreviousSnapshots(offer: ConsolidatedOffer, snapshots: PriceSnapshot[], windowDays: number): PriceSnapshot[] {
+function selectPreviousSnapshots(
+  offer: ConsolidatedOffer,
+  snapshots: PriceSnapshot[],
+  windowDays: number
+): PriceSnapshot[] {
   const scoreTime = Date.parse(offer.firstSeenAt);
   const windowMs = windowDays * DAY_MS;
 
@@ -193,7 +254,10 @@ function calculateMedian(values: number[]): number | null {
   return Math.round((left + right) / 2);
 }
 
-function calculateDeviationPercent(amountInCents: number, medianInCents: number | null): number | null {
+function calculateDeviationPercent(
+  amountInCents: number,
+  medianInCents: number | null
+): number | null {
   if (medianInCents === null || medianInCents === 0) {
     return null;
   }
@@ -210,7 +274,9 @@ function roundPercent(value: number): number {
 }
 
 function compareOffers(left: ConsolidatedOffer, right: ConsolidatedOffer): number {
-  const byFirstSeenAt = new Date(left.firstSeenAt).toISOString().localeCompare(new Date(right.firstSeenAt).toISOString());
+  const byFirstSeenAt = new Date(left.firstSeenAt)
+    .toISOString()
+    .localeCompare(new Date(right.firstSeenAt).toISOString());
 
   if (byFirstSeenAt !== 0) {
     return byFirstSeenAt;

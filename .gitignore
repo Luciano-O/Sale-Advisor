@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.pnpm/
 .pnpm-store/
 
 # Build outputs
@@ -7,7 +8,11 @@ dist/
 build/
 .next/
 .expo/
+/apps/mobile/android/
+/apps/mobile/ios/
 coverage/
+playwright-report/
+test-results/
 
 # Environment
 .env

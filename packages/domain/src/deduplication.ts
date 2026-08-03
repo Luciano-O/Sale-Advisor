@@ -8,7 +8,7 @@ import type {
 
 const DEFAULT_DEDUPLICATION_WINDOW_MS = 48 * 60 * 60 * 1000;
 
-interface MutableOffer extends ConsolidatedOffer {}
+type MutableOffer = ConsolidatedOffer;
 
 export function deduplicateOfferCandidates(
   candidates: OfferCandidate[],
@@ -23,7 +23,8 @@ export function deduplicateOfferCandidates(
       continue;
     }
 
-    const offer = findMatchingOffer(offers, candidate, windowMs) ?? createOffer(candidate, offers.length + 1);
+    const offer =
+      findMatchingOffer(offers, candidate, windowMs) ?? createOffer(candidate, offers.length + 1);
 
     if (!offers.includes(offer)) {
       offers.push(offer);
@@ -31,6 +32,14 @@ export function deduplicateOfferCandidates(
 
     offer.lastSeenAt = maxIsoDate(offer.lastSeenAt, candidate.capturedAt);
     offer.mentionCount += 1;
+    offer.price = candidate.price;
+    offer.priceBucketInCents = candidate.priceBucketInCents;
+    offer.coupon = candidate.coupon;
+    const observedPrices = offer.observedPricesInCents ?? [];
+    if (observedPrices.at(-1) !== candidate.price.amountInCents) {
+      observedPrices.push(candidate.price.amountInCents);
+    }
+    offer.observedPricesInCents = observedPrices;
 
     if (!offer.normalizedUrl && candidate.normalizedUrl) {
       offer.normalizedUrl = candidate.normalizedUrl.normalizedUrl;
@@ -79,10 +88,10 @@ function sortCandidates(candidates: OfferCandidate[]): OfferCandidate[] {
 function isCompleteCandidate(candidate: OfferCandidate): candidate is CompleteOfferCandidate {
   return Boolean(
     candidate.product &&
-      candidate.price &&
-      candidate.priceBucketInCents !== null &&
-      candidate.domain &&
-      candidate.store
+    candidate.price &&
+    candidate.priceBucketInCents !== null &&
+    candidate.domain &&
+    candidate.store
   );
 }
 
@@ -94,11 +103,24 @@ type CompleteOfferCandidate = OfferCandidate & {
   store: NonNullable<OfferCandidate["store"]>;
 };
 
-function findMatchingOffer(offers: MutableOffer[], candidate: CompleteOfferCandidate, windowMs: number): MutableOffer | null {
+function findMatchingOffer(
+  offers: MutableOffer[],
+  candidate: CompleteOfferCandidate,
+  windowMs: number
+): MutableOffer | null {
   return (
-    offers.find((offer) => isInsideWindow(offer, candidate, windowMs) && matchesByStoreProductId(offer, candidate)) ??
-    offers.find((offer) => isInsideWindow(offer, candidate, windowMs) && matchesByNormalizedUrl(offer, candidate)) ??
-    offers.find((offer) => isInsideWindow(offer, candidate, windowMs) && matchesByFallbackSignals(offer, candidate)) ??
+    offers.find(
+      (offer) =>
+        isInsideWindow(offer, candidate, windowMs) && matchesByStoreProductId(offer, candidate)
+    ) ??
+    offers.find(
+      (offer) =>
+        isInsideWindow(offer, candidate, windowMs) && matchesByNormalizedUrl(offer, candidate)
+    ) ??
+    offers.find(
+      (offer) =>
+        isInsideWindow(offer, candidate, windowMs) && matchesByFallbackSignals(offer, candidate)
+    ) ??
     null
   );
 }
@@ -106,21 +128,23 @@ function findMatchingOffer(offers: MutableOffer[], candidate: CompleteOfferCandi
 function matchesByStoreProductId(offer: MutableOffer, candidate: CompleteOfferCandidate): boolean {
   return Boolean(
     offer.storeProductId &&
-      candidate.storeProductId &&
-      offer.domain === candidate.domain &&
-      offer.storeProductId === candidate.storeProductId &&
-      offer.product.id === candidate.product.id &&
-      offer.price.amountInCents === candidate.price.amountInCents
+    candidate.storeProductId &&
+    offer.domain === candidate.domain &&
+    offer.storeProductId === candidate.storeProductId &&
+    offer.product.id === candidate.product.id &&
+    offer.price.amountInCents === candidate.price.amountInCents &&
+    sameCoupon(offer.coupon, candidate.coupon)
   );
 }
 
 function matchesByNormalizedUrl(offer: MutableOffer, candidate: CompleteOfferCandidate): boolean {
   return Boolean(
     offer.normalizedUrl &&
-      candidate.normalizedUrl &&
-      offer.normalizedUrl === candidate.normalizedUrl.normalizedUrl &&
-      offer.product.id === candidate.product.id &&
-      offer.price.amountInCents === candidate.price.amountInCents
+    candidate.normalizedUrl &&
+    offer.normalizedUrl === candidate.normalizedUrl.normalizedUrl &&
+    offer.product.id === candidate.product.id &&
+    offer.price.amountInCents === candidate.price.amountInCents &&
+    sameCoupon(offer.coupon, candidate.coupon)
   );
 }
 
@@ -129,11 +153,15 @@ function matchesByFallbackSignals(offer: MutableOffer, candidate: CompleteOfferC
     offer.product.id === candidate.product.id &&
     offer.domain === candidate.domain &&
     offer.priceBucketInCents === candidate.priceBucketInCents &&
-    offer.price.amountInCents === candidate.price.amountInCents
+    sameCoupon(offer.coupon, candidate.coupon)
   );
 }
 
-function isInsideWindow(offer: MutableOffer, candidate: CompleteOfferCandidate, windowMs: number): boolean {
+function isInsideWindow(
+  offer: MutableOffer,
+  candidate: CompleteOfferCandidate,
+  windowMs: number
+): boolean {
   const firstSeenAt = Date.parse(offer.firstSeenAt);
   const capturedAt = Date.parse(candidate.capturedAt);
 
@@ -152,8 +180,14 @@ function createOffer(candidate: CompleteOfferCandidate, index: number): MutableO
     domain: candidate.domain,
     firstSeenAt: candidate.capturedAt,
     lastSeenAt: candidate.capturedAt,
-    mentionCount: 0
+    mentionCount: 0,
+    coupon: candidate.coupon,
+    observedPricesInCents: []
   };
+}
+
+function sameCoupon(left: string | null | undefined, right: string | null | undefined): boolean {
+  return (left ?? null) === (right ?? null);
 }
 
 function maxIsoDate(left: string, right: string): string {

@@ -2,7 +2,7 @@ export { deduplicateOfferCandidates } from "./deduplication.js";
 export { identifyGpuProduct } from "./gpu.js";
 export { buildOfferCandidate } from "./offer-candidate.js";
 export { calculatePriceBucket } from "./price-bucket.js";
-export { parsePrice } from "./price.js";
+export { parsePrice, parsePriceQuotes, selectEffectivePrice } from "./price.js";
 export {
   DEFAULT_PRICE_SCORING_POLICY,
   calculatePriceHistoryMetrics,
@@ -25,6 +25,7 @@ export type {
   OfferCandidate,
   OfferMention,
   ParsedPrice,
+  PriceQuote,
   PriceHistoryMetrics,
   PriceScoringOutput,
   PriceScoringPolicy,

@@ -1,6 +1,10 @@
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
-import { processRawMessages } from "./process-fixtures.js";
+import { processFixtureFile, processRawMessages } from "./process-fixtures.js";
 import type { RawFixtureMessage } from "./process-fixtures.js";
 
 describe("processRawMessages", () => {
@@ -21,7 +25,6 @@ describe("processRawMessages", () => {
     expect(result.offerMentions).toHaveLength(2);
     expect(result.offers[0]?.mentionCount).toBe(2);
   });
-
 
   it("preserves normalized store data in offers and mentions", () => {
     const result = processRawMessages([
@@ -71,6 +74,25 @@ describe("processRawMessages", () => {
       offers: [],
       offerMentions: []
     });
+  });
+
+  it("validates, processes and writes a fixture file", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "sale-advisor-worker-"));
+    const inputPath = join(directory, "input.json");
+    const outputPath = join(directory, "nested", "output.json");
+    try {
+      await writeFile(inputPath, JSON.stringify([rawMessage({})]), "utf8");
+      expect((await processFixtureFile({ inputPath, outputPath })).offers).toHaveLength(1);
+      expect(JSON.parse(await readFile(outputPath, "utf8")).offers).toHaveLength(1);
+      await writeFile(inputPath, JSON.stringify({ invalid: true }), "utf8");
+      await expect(processFixtureFile({ inputPath, outputPath })).rejects.toThrow(/array/);
+      await writeFile(inputPath, JSON.stringify([null]), "utf8");
+      await expect(processFixtureFile({ inputPath, outputPath })).rejects.toThrow(/object/);
+      await writeFile(inputPath, JSON.stringify([{ id: 1 }]), "utf8");
+      await expect(processFixtureFile({ inputPath, outputPath })).rejects.toThrow(/string id/);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });
 

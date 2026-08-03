@@ -1,0 +1,2 @@
+ALTER TABLE "offer_scores" ADD COLUMN "input_hash" varchar(64);--> statement-breakpoint
+CREATE UNIQUE INDEX "offer_scores_input_unique" ON "offer_scores" USING btree ("offer_id","policy_version","input_hash");

@@ -32,7 +32,9 @@ export function processRawMessages(rawMessages: RawFixtureMessage[]): Deduplicat
   return deduplicateOfferCandidates(candidates);
 }
 
-export async function processFixtureFile(options: ProcessFixturesOptions = {}): Promise<DeduplicationResult> {
+export async function processFixtureFile(
+  options: ProcessFixturesOptions = {}
+): Promise<DeduplicationResult> {
   const inputPath = options.inputPath ?? DEFAULT_INPUT_PATH;
   const outputPath = options.outputPath ?? DEFAULT_OUTPUT_PATH;
   const rawMessages = parseRawMessages(JSON.parse(await readFile(inputPath, "utf8")));
@@ -62,8 +64,15 @@ function parseRawMessage(value: unknown, index: number): RawFixtureMessage {
   const text = value["text"];
   const capturedAt = value["capturedAt"];
 
-  if (typeof id !== "string" || typeof sourceName !== "string" || typeof text !== "string" || typeof capturedAt !== "string") {
-    throw new TypeError(`raw message at index ${index} must include string id, sourceName, text and capturedAt`);
+  if (
+    typeof id !== "string" ||
+    typeof sourceName !== "string" ||
+    typeof text !== "string" ||
+    typeof capturedAt !== "string"
+  ) {
+    throw new TypeError(
+      `raw message at index ${index} must include string id, sourceName, text and capturedAt`
+    );
   }
 
   return {

@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Sale Advisor",
+    "slug": "sale-advisor",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "saleadvisor",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "plugins": ["expo-router", "expo-sqlite", "expo-notifications"],
+    "android": {
+      "package": "com.saleadvisor.mobile",
+      "permissions": ["POST_NOTIFICATIONS"]
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

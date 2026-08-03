@@ -1,3 +1,19 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+nodeLinker: hoisted
+virtualStoreDir: .pnpm
+virtualStoreDirMaxLength: 24
+
+overrides:
+  "@types/superagent": "8.1.10"
+  "react": "19.2.3"
+  "react-dom": "19.2.3"
+  "ws": "8.21.0"
+
+allowBuilds:
+  "@firebase/util": true
+  "esbuild": true
+  "msgpackr-extract": true
+  "protobufjs": true
