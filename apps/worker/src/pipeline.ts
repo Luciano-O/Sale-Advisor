@@ -9,7 +9,7 @@ import type {
   ScoredOffer
 } from "@sale-advisor/domain";
 
-import type { NotificationProvider } from "./notification.js";
+import { asNotificationSendError, type NotificationProvider } from "./notification.js";
 
 type ProcessingStatus = "pending" | "partial" | "completed" | "failed";
 
@@ -43,7 +43,9 @@ interface Delivery {
   installationId: string;
   offerId: string;
   provider: string;
-  status: "sent";
+  status: "pending" | "sent" | "failed";
+  attempts: number;
+  error: string | null;
 }
 
 export interface WorkerRepository {
@@ -164,26 +166,44 @@ export class WorkerPipeline {
     if (!offer || Date.now() - Date.parse(offer.lastSeenAt) > 48 * 60 * 60 * 1_000) return;
     const score = [...this.repository.scores].reverse().find((item) => item.offerId === offer.id);
     const ranks: Record<string, number> = { normal: 0, boa: 1, muito_boa: 2, excepcional: 3 };
+    let retryableFailure: Error | null = null;
     for (const installation of this.repository.installations) {
       if ((ranks[score?.label ?? "normal"] ?? 0) < (ranks[installation.minimumLabel] ?? 0))
         continue;
-      if (
-        this.repository.deliveries.some(
-          (item) => item.installationId === installation.id && item.offerId === offer.id
-        )
-      )
-        continue;
-      await this.notifications.send(
-        { installationId: installation.id, token: installation.token },
-        { offerId: offer.id }
+      let delivery = this.repository.deliveries.find(
+        (item) => item.installationId === installation.id && item.offerId === offer.id
       );
-      this.repository.deliveries.push({
-        installationId: installation.id,
-        offerId: offer.id,
-        provider: this.notifications.name,
-        status: "sent"
-      });
+      if (delivery?.status === "sent" || delivery?.status === "pending") continue;
+      if (!delivery) {
+        delivery = {
+          installationId: installation.id,
+          offerId: offer.id,
+          provider: this.notifications.name,
+          status: "pending",
+          attempts: 1,
+          error: null
+        };
+        this.repository.deliveries.push(delivery);
+      } else {
+        delivery.status = "pending";
+        delivery.attempts += 1;
+        delivery.error = null;
+      }
+      try {
+        await this.notifications.send(
+          { installationId: installation.id, token: installation.token },
+          { offerId: offer.id }
+        );
+        delivery.status = "sent";
+      } catch (error) {
+        const failure = asNotificationSendError(error);
+        delivery.status = "failed";
+        delivery.error = failure.code;
+        if (failure.retryable) retryableFailure ??= failure;
+        else installation.token = null;
+      }
     }
+    if (retryableFailure) throw retryableFailure;
   }
 
   private async rebuildConsolidation(): Promise<void> {

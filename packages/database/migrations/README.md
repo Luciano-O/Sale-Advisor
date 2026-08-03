@@ -21,3 +21,18 @@ Migrations posteriores devem ser aditivas e documentar compatibilidade, impacto 
   replay. Mensagens, menções, snapshots e scores legados não são alterados ou removidos.
 - Rollback: remover o índice `offer_scores_input_unique` e a coluna `input_hash`; a aplicação deve
   ser revertida no mesmo deploy para não tentar gravar a coluna ausente.
+
+## 0002_cute_hobgoblin.sql e 0003_first_living_lightning.sql
+
+- Compatibilidade: migrations aditivas da coleta Telegram, liderança operacional, resolução segura
+  de URLs e reprocessamento auditável. Código anterior ignora as novas estruturas.
+- Impacto: preservam mensagens, parses, menções e snapshots; nenhum dado bruto é removido.
+- Rollback: reverter o código e manter tabelas/colunas para permitir replay futuro.
+
+## 0004_sad_sharon_ventura.sql
+
+- Compatibilidade: aditiva; entregas existentes recebem `attempts = 0` e continuam válidas.
+- Impacto: retries atualizam a mesma entrega por instalação e oferta, sem alterar o índice único nem
+  reenviar registros já marcados como `sent`.
+- Rollback: reverter o código e manter a coluna `attempts`. Removê-la não é necessário nem seguro
+  durante rollback operacional.

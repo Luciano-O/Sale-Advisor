@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   createNotificationProvider,
   FakeNotificationProvider,
-  FcmNotificationProvider
+  FcmNotificationProvider,
+  NotificationSendError
 } from "./notification.js";
 import { DEFAULT_JOB_OPTIONS, deterministicJobId } from "./queue-config.js";
 import { InMemoryWorkerRepository, WorkerPipeline } from "./pipeline.js";
@@ -33,7 +34,7 @@ describe("persistent worker pipeline", () => {
         { installationId: "device", token: null },
         { offerId: "offer" }
       )
-    ).rejects.toThrow(/target/i);
+    ).rejects.toMatchObject({ code: "messaging/missing-token", retryable: false });
   });
 
   it("processes and replays a message idempotently", async () => {
@@ -131,5 +132,135 @@ describe("persistent worker pipeline", () => {
     expect(notifications.deliveries).toHaveLength(1);
     expect(repository.deliveries).toHaveLength(1);
     expect(notifications.deliveries[0]?.payload).toEqual({ offerId: repository.offers[0]?.id });
+  });
+
+  it("retries a transient notification failure and preserves one delivery record", async () => {
+    const repository = new InMemoryWorkerRepository();
+    let attempts = 0;
+    const notifications = {
+      name: "fcm" as const,
+      async send() {
+        attempts += 1;
+        if (attempts === 1) throw new NotificationSendError("messaging/internal-error", true);
+      }
+    };
+    const pipeline = new WorkerPipeline(repository, notifications);
+    repository.addInstallation({ id: "device", minimumLabel: "normal", token: "token" });
+    const id = repository.addRawMessage({
+      text: "RTX 4060 8GB R$ 1.899 Pix",
+      capturedAt: new Date().toISOString(),
+      storeDomain: "shop.example",
+      notifyEligible: true
+    });
+
+    await expect(pipeline.processRawMessage(id)).rejects.toThrow(/internal-error/);
+    expect(repository.deliveries).toMatchObject([
+      { status: "failed", attempts: 1, error: "messaging/internal-error" }
+    ]);
+
+    await pipeline.notifyForMessage(id);
+    expect(attempts).toBe(2);
+    expect(repository.deliveries).toMatchObject([{ status: "sent", attempts: 2, error: null }]);
+  });
+
+  it("disables a permanently invalid token without blocking other recipients", async () => {
+    const repository = new InMemoryWorkerRepository();
+    const sentTo: string[] = [];
+    const notifications = {
+      name: "fcm" as const,
+      async send(target: { installationId: string }) {
+        if (target.installationId === "invalid")
+          throw new NotificationSendError("messaging/registration-token-not-registered", false);
+        sentTo.push(target.installationId);
+      }
+    };
+    const pipeline = new WorkerPipeline(repository, notifications);
+    repository.addInstallation({ id: "invalid", minimumLabel: "normal", token: "bad-token" });
+    repository.addInstallation({ id: "valid", minimumLabel: "normal", token: "good-token" });
+    const id = repository.addRawMessage({
+      text: "RTX 4060 8GB R$ 1.899 Pix",
+      capturedAt: new Date().toISOString(),
+      storeDomain: "shop.example",
+      notifyEligible: true
+    });
+
+    await pipeline.processRawMessage(id);
+
+    expect(repository.installations.find((item) => item.id === "invalid")?.token).toBeNull();
+    expect(repository.deliveries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ installationId: "invalid", status: "failed", attempts: 1 }),
+        expect.objectContaining({ installationId: "valid", status: "sent", attempts: 1 })
+      ])
+    );
+    expect(sentTo).toEqual(["valid"]);
+  });
+
+  it("attempts every recipient before surfacing transient failures", async () => {
+    const repository = new InMemoryWorkerRepository();
+    const attempted: string[] = [];
+    const notifications = {
+      name: "fcm" as const,
+      async send(target: { installationId: string }) {
+        attempted.push(target.installationId);
+        if (target.installationId === "first")
+          throw new NotificationSendError("messaging/server-unavailable", true);
+      }
+    };
+    const pipeline = new WorkerPipeline(repository, notifications);
+    repository.addInstallation({ id: "first", minimumLabel: "normal", token: "one" });
+    repository.addInstallation({ id: "second", minimumLabel: "normal", token: "two" });
+    const id = repository.addRawMessage({
+      text: "RTX 4060 8GB R$ 1.899 Pix",
+      capturedAt: new Date().toISOString(),
+      storeDomain: "shop.example",
+      notifyEligible: true
+    });
+
+    await expect(pipeline.processRawMessage(id)).rejects.toThrow(/server-unavailable/);
+    expect(attempted).toEqual(["first", "second"]);
+    expect(repository.deliveries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ installationId: "first", status: "failed" }),
+        expect.objectContaining({ installationId: "second", status: "sent" })
+      ])
+    );
+  });
+
+  it("claims a notification before sending so concurrent retries do not duplicate it", async () => {
+    const repository = new InMemoryWorkerRepository();
+    let sends = 0;
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const notifications = {
+      name: "fcm" as const,
+      async send() {
+        sends += 1;
+        await gate;
+      }
+    };
+    const pipeline = new WorkerPipeline(repository, notifications);
+    repository.addInstallation({ id: "device", minimumLabel: "normal", token: "token" });
+    const id = repository.addRawMessage({
+      text: "RTX 4060 8GB R$ 1.899 Pix",
+      capturedAt: new Date().toISOString(),
+      storeDomain: "shop.example",
+      notifyEligible: false
+    });
+    await pipeline.processRawMessage(id);
+    const raw = repository.rawMessages.find((item) => item.id === id);
+    if (!raw) throw new Error("test raw message not found");
+    raw.notifyEligible = true;
+
+    const first = pipeline.notifyForMessage(id);
+    const concurrent = pipeline.notifyForMessage(id);
+    await Promise.resolve();
+    release();
+    await Promise.all([first, concurrent]);
+
+    expect(sends).toBe(1);
+    expect(repository.deliveries).toMatchObject([{ status: "sent", attempts: 1 }]);
   });
 });

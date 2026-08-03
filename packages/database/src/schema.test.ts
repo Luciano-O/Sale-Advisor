@@ -1,4 +1,4 @@
-import { getTableName } from "drizzle-orm";
+import { getTableColumns, getTableName } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "./schema.js";
@@ -45,5 +45,12 @@ describe("persistent MVP schema", () => {
     expect(GPU_TAXONOMY_SEED).toContainEqual(
       expect.objectContaining({ vendor: "NVIDIA", model: "RTX 4060", vramGb: 8 })
     );
+  });
+
+  it("tracks notification delivery attempts for retryable sends", () => {
+    const columns = getTableColumns(schema.notificationDeliveries);
+    expect(columns.attempts).toBeDefined();
+    expect(columns.attempts.notNull).toBe(true);
+    expect(columns.attempts.hasDefault).toBe(true);
   });
 });

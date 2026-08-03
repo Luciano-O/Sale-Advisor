@@ -11,7 +11,7 @@ import {
 } from "@sale-advisor/domain";
 import type { ConsolidatedOffer, OfferCandidate, PriceSnapshot } from "@sale-advisor/domain";
 
-import type { NotificationProvider } from "./notification.js";
+import { asNotificationSendError, type NotificationProvider } from "./notification.js";
 import { SafeUrlResolver, URL_RESOLVER_VERSION, type UrlResolutionRecord } from "./url-resolver.js";
 
 interface RawRow {
@@ -401,12 +401,29 @@ export class PersistentPipelineService implements OnApplicationShutdown {
       where d.push_enabled or ${this.notifications.name} = 'fake'
     `;
     const rank: Record<string, number> = { normal: 0, boa: 1, muito_boa: 2, excepcional: 3 };
+    let retryableFailure: Error | null = null;
     for (const target of targets) {
       if ((rank[row.label] ?? 0) < (rank[target.minimum_label] ?? 1)) continue;
       const delivery = await this.connection.client<{ id: string }[]>`
-        insert into notification_deliveries (installation_id, offer_id, provider, status, payload)
-        values (${target.id}, ${row.offer_id}, ${this.notifications.name}, 'pending', ${this.connection.client.json({ offerId: row.offer_id })})
-        on conflict (installation_id, offer_id) do nothing returning id
+        insert into notification_deliveries (
+          installation_id, offer_id, provider, status, payload, attempts, attempted_at
+        ) values (
+          ${target.id}, ${row.offer_id}, ${this.notifications.name}, 'pending',
+          ${this.connection.client.json({ offerId: row.offer_id })}, 1, now()
+        )
+        on conflict (installation_id, offer_id) do update set
+          provider = excluded.provider,
+          status = 'pending',
+          payload = excluded.payload,
+          attempts = notification_deliveries.attempts + 1,
+          error = null,
+          attempted_at = now()
+        where notification_deliveries.status = 'failed'
+          or (
+            notification_deliveries.status = 'pending'
+            and notification_deliveries.attempted_at < now() - interval '5 minutes'
+          )
+        returning id
       `;
       const deliveryId = delivery[0]?.id;
       if (!deliveryId) continue;
@@ -418,11 +435,18 @@ export class PersistentPipelineService implements OnApplicationShutdown {
         await this.connection
           .client`update notification_deliveries set status = 'sent' where id = ${deliveryId}`;
       } catch (error) {
+        const failure = asNotificationSendError(error);
         await this.connection
-          .client`update notification_deliveries set status = 'failed', error = ${errorName(error)} where id = ${deliveryId}`;
-        throw error;
+          .client`update notification_deliveries set status = 'failed', error = ${failure.code} where id = ${deliveryId}`;
+        if (failure.retryable) retryableFailure ??= failure;
+        else
+          await this.connection.client`
+            update device_installations set push_enabled = false, push_target = null, updated_at = now()
+            where id = ${target.id}
+          `;
       }
     }
+    if (retryableFailure) throw retryableFailure;
   }
 
   async markFailed(rawMessageId: string, error: unknown) {

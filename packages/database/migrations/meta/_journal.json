@@ -29,6 +29,13 @@
       "when": 1785769420434,
       "tag": "0003_first_living_lightning",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785786489590,
+      "tag": "0004_sad_sharon_ventura",
+      "breakpoints": true
     }
   ]
 }

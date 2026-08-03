@@ -357,6 +357,7 @@ export const notificationDeliveries = pgTable(
     status: deliveryStatus("status").notNull().default("pending"),
     payload: jsonb("payload").notNull(),
     error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
     attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
