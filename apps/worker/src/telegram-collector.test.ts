@@ -148,5 +148,8 @@ describe("TelegramCollector", () => {
 
     expect(queue.jobs.map(({ messageId }) => messageId)).toEqual(["2"]);
     expect(errors).toHaveLength(1);
+    expect(errors[0]).toBe("Telegram message could not be queued error=Error");
+    expect(errors[0]).not.toContain("-1001");
+    expect(errors[0]).not.toContain("message=1");
   });
 });

@@ -103,9 +103,7 @@ export class TelegramCollector {
         })
       );
     } catch (error) {
-      this.options.logger?.error(
-        `Telegram message could not be queued peer=${chat.peerId} message=${String(message.id)} error=${errorName(error)}`
-      );
+      this.options.logger?.error(`Telegram message could not be queued error=${errorName(error)}`);
     }
   }
 }
