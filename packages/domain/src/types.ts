@@ -5,6 +5,9 @@ export type ProductCondition = "new" | "used" | "open_box" | "unknown";
 export type GpuVendor = "NVIDIA" | "AMD";
 
 export type StoreProductIdSource =
+  | "path:amazon-asin"
+  | "path:mercado-livre-item"
+  | "path:shopee-item"
   | "query:sku"
   | "query:productId"
   | "query:produtoId"
@@ -68,6 +71,8 @@ export interface BuildOfferCandidateInput {
   rawMessageId?: string;
   sourceName?: string;
   storeDomain?: string;
+  resolvedUrl?: string | null;
+  urlResolutionFailed?: boolean;
 }
 
 export interface OfferCandidate {
@@ -87,7 +92,8 @@ export interface OfferCandidate {
   condition: ProductCondition;
   boardBrand: string | null;
   coupon: string | null;
-  parserVersion: 2;
+  parserVersion: 2 | 3;
+  urlResolutionFailed?: boolean;
   rawMessageId?: string;
   sourceName?: string;
   storeDomain?: string;

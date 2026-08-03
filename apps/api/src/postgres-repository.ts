@@ -33,6 +33,7 @@ export class PostgresApiRepository implements ApiRepository {
   private readonly connection = createDatabase();
   private readonly telemetryQueues = [
     "telegram-ingest",
+    "resolve-url",
     "parse",
     "consolidate",
     "score",

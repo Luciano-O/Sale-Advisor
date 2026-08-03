@@ -116,5 +116,7 @@ describe("admin curation workspace", () => {
     expect(await screen.findByRole("heading", { name: /saúde do telegram/i })).toBeInTheDocument();
     expect(screen.getByText(/1 ativa, 1 standby/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /reconectar|pausar|reprocessar/i })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Sources e stores" }));
+    expect(await screen.findByRole("heading", { name: /saúde do telegram/i })).toBeInTheDocument();
   });
 });
