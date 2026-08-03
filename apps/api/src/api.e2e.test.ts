@@ -35,6 +35,30 @@ describe("MVP API", () => {
     expect(response.headers["access-control-allow-headers"]).toContain("x-admin-key");
   });
 
+  it("exposes sanitized read-only integration health to the admin", async () => {
+    const response = await request(context.app.getHttpServer())
+      .get("/v1/admin/integrations")
+      .set("x-admin-key", ADMIN_KEY)
+      .expect(200);
+
+    expect(response.body.integrations).toContainEqual(
+      expect.objectContaining({
+        kind: "telegram",
+        enabled: false,
+        status: "disabled",
+        configuredSourceCount: 0,
+        persistedSourceCount: 0,
+        instances: { active: 0, standby: 0 },
+        queues: expect.any(Object)
+      })
+    );
+    expect(JSON.stringify(response.body)).not.toMatch(/session|api_hash|phone|peer|messageText/i);
+    await request(context.app.getHttpServer())
+      .post("/v1/admin/integrations/telegram/reconnect")
+      .set("x-admin-key", ADMIN_KEY)
+      .expect(404);
+  });
+
   it("requires the admin key and uses the manual contract with notifications enabled", async () => {
     const payload = {
       text: "RTX 4060 8GB por R$ 1.899 no Pix",

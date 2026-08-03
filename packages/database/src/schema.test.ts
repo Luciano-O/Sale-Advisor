@@ -19,6 +19,7 @@ describe("persistent MVP schema", () => {
     expect(names).toEqual([
       "admin_audit_events",
       "anonymous_events",
+      "collector_instances",
       "device_installations",
       "import_batches",
       "notification_deliveries",

@@ -115,10 +115,19 @@ function PageContent({ page, adminKey }: { page: Page; adminKey: string }) {
 
 function Dashboard({ adminKey }: { adminKey: string }) {
   const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [telegram, setTelegram] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
     void adminRequest<Record<string, unknown>>("/v1/admin/dashboard", adminKey)
       .then(setData)
+      .catch((reason) => setError(String(reason)));
+    void adminRequest<{ integrations: Record<string, unknown>[] }>(
+      "/v1/admin/integrations",
+      adminKey
+    )
+      .then((response) =>
+        setTelegram(response.integrations.find((item) => item.kind === "telegram") ?? null)
+      )
       .catch((reason) => setError(String(reason)));
   }, [adminKey]);
   return (
@@ -134,6 +143,19 @@ function Dashboard({ adminKey }: { adminKey: string }) {
           value={Number((data?.offersByLabel as Record<string, number> | undefined)?.boa ?? 0)}
           tone="green"
         />
+      </div>
+      <div className="panel">
+        <h2>Saúde do Telegram</h2>
+        <p>
+          Estado: {String(telegram?.status ?? "carregando")} ·{" "}
+          {Number((telegram?.instances as Record<string, number> | undefined)?.active ?? 0)} ativa,{" "}
+          {Number((telegram?.instances as Record<string, number> | undefined)?.standby ?? 0)}{" "}
+          standby
+        </p>
+        <p>
+          Fontes: {Number(telegram?.persistedSourceCount ?? 0)}/
+          {Number(telegram?.configuredSourceCount ?? 0)} · retry {Number(telegram?.retryCount ?? 0)}
+        </p>
       </div>
       <div className="panel">
         <h2>Operação local</h2>

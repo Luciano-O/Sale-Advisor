@@ -27,6 +27,34 @@ export const processingStatus = pgEnum("processing_status", [
 ]);
 export const offerStatus = pgEnum("offer_status", ["active", "merged", "split", "expired"]);
 export const deliveryStatus = pgEnum("delivery_status", ["pending", "sent", "failed", "skipped"]);
+export const collectorRole = pgEnum("collector_role", ["active", "standby"]);
+export const collectorState = pgEnum("collector_state", [
+  "starting",
+  "healthy",
+  "retrying",
+  "blocked",
+  "stopped"
+]);
+
+export const collectorInstances = pgTable(
+  "collector_instances",
+  {
+    instanceId: varchar("instance_id", { length: 120 }).primaryKey(),
+    integrationKind: varchar("integration_kind", { length: 40 }).notNull(),
+    role: collectorRole("role").notNull().default("standby"),
+    state: collectorState("state").notNull().default("starting"),
+    heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    retryCount: integer("retry_count").notNull().default(0),
+    nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
+    lastError: jsonb("last_error"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (table) => [
+    index("collector_instances_health_idx").on(table.integrationKind, table.role, table.heartbeatAt)
+  ]
+);
 
 export const sources = pgTable(
   "sources",

@@ -15,3 +15,16 @@ export function createDatabase(environment: Record<string, string | undefined> =
     }
   };
 }
+
+export function createDedicatedDatabaseConnection(
+  environment: Record<string, string | undefined> = process.env
+) {
+  const { databaseUrl } = readDatabaseConfig(environment);
+  const client = postgres(databaseUrl, { max: 1 });
+  return {
+    client,
+    async close() {
+      await client.end();
+    }
+  };
+}
