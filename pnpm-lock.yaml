@@ -102,6 +102,9 @@ importers:
       '@sale-advisor/database':
         specifier: workspace:*
         version: link:../../packages/database
+      bullmq:
+        specifier: ^5.58.5
+        version: 5.80.2
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2

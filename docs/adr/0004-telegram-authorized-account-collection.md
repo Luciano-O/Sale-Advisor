@@ -26,12 +26,16 @@ Somente mensagens novas são coletadas nesta versão.
 
 ## Consequências
 
-- Nenhuma migration é necessária; o schema atual já contém os campos e constraints exigidos.
+- A migration aditiva `0002_cute_hobgoblin` registra papel, estado, heartbeat e retry das
+  instâncias sem alterar nem remover dados de coleta.
+- Um advisory lock PostgreSQL mantido em conexão exclusiva garante um único coletor ativo; as
+  demais instâncias permanecem standby e verificam a liderança a cada 15 segundos.
 - Redis pode repetir ou remover jobs sem comprometer a idempotência no PostgreSQL.
-- Falhas de configuração são fatais; falhas transitórias de conexão são retentadas sem interromper
-  os processors já ativos.
+- Falhas permanentes bloqueiam retry, `FloodWait` respeita o prazo informado e falhas transitórias
+  usam backoff exponencial com jitter. Erros desconhecidos bloqueiam após cinco ocorrências.
 - A sessão concede acesso à conta e deve permanecer em `.env` ignorado ou secret manager.
 - Edições e exclusões exigirão um modelo futuro de revisões para não inflar `mention_count`.
+- O admin expõe apenas saúde agregada e não oferece comandos operacionais.
 
 ## Alternativas consideradas
 

@@ -78,6 +78,11 @@ export class AdminController {
     return this.repository.adminDashboard();
   }
 
+  @Get("integrations")
+  integrations() {
+    return this.repository.adminIntegrations();
+  }
+
   @Get("messages")
   async messages() {
     return { items: await this.repository.adminList("messages") };
