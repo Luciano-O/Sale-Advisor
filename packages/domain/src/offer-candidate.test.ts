@@ -44,4 +44,24 @@ describe("buildOfferCandidate", () => {
     expect(candidate.normalizedUrl).toBeNull();
     expect(candidate.priceBucketInCents).toBeNull();
   });
+
+  it("preserves every source URL and prefers a non-Telegram offer URL", () => {
+    const candidate = buildOfferCandidate({
+      rawText:
+        "RTX 4060 por R$ 1.899 no Pix https://t.me/ofertas. Veja também https://shop.example/gpu?sku=4060&utm_source=telegram)",
+      capturedAt: "2026-07-02T12:00:00.000Z",
+      urls: [
+        "https://t.me/ofertas",
+        "https://shop.example/gpu?sku=4060&utm_source=telegram",
+        "https://shop.example/gpu?sku=4060&utm_source=telegram"
+      ]
+    });
+
+    expect(candidate.sourceUrls).toEqual([
+      "https://t.me/ofertas",
+      "https://shop.example/gpu?sku=4060&utm_source=telegram"
+    ]);
+    expect(candidate.sourceUrl).toBe("https://shop.example/gpu?sku=4060&utm_source=telegram");
+    expect(candidate.normalizedUrl?.normalizedUrl).toBe("https://shop.example/gpu?sku=4060");
+  });
 });

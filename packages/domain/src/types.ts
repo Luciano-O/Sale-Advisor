@@ -64,6 +64,7 @@ export interface BuildOfferCandidateInput {
   rawText: string;
   capturedAt: Date | string;
   url?: string;
+  urls?: string[];
   rawMessageId?: string;
   sourceName?: string;
   storeDomain?: string;
@@ -72,6 +73,7 @@ export interface BuildOfferCandidateInput {
 export interface OfferCandidate {
   rawText: string;
   capturedAt: string;
+  sourceUrls: string[];
   sourceUrl: string | null;
   normalizedUrl: NormalizedUrl | null;
   store: NormalizedStore | null;

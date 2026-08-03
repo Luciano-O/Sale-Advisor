@@ -1,5 +1,9 @@
 import type { NormalizedUrl } from "./types.js";
 
+const HTTP_URL_PATTERN = /https?:\/\/[^\s<>"']+/gi;
+const TRAILING_URL_PUNCTUATION = /[),.;:!?\]}]+$/;
+const TELEGRAM_DOMAINS = new Set(["t.me", "telegram.me", "telegram.dog"]);
+
 const TRACKING_PARAMS = new Set([
   "fbclid",
   "gclid",
@@ -49,6 +53,30 @@ export function normalizeUrl(url: string): NormalizedUrl | null {
   } catch {
     return null;
   }
+}
+
+export function extractHttpUrls(text: string): string[] {
+  return Array.from(text.matchAll(HTTP_URL_PATTERN), ([url]) =>
+    url.replace(TRAILING_URL_PUNCTUATION, "")
+  ).filter(Boolean);
+}
+
+export function selectPrimaryOfferUrl(urls: string[]): string | null {
+  const validUrls = urls
+    .map((original) => ({ original, normalized: normalizeUrl(original) }))
+    .filter(
+      (
+        candidate
+      ): candidate is {
+        original: string;
+        normalized: NormalizedUrl;
+      } => candidate.normalized !== null
+    );
+  return (
+    validUrls.find(({ normalized }) => !TELEGRAM_DOMAINS.has(normalized.domain))?.original ??
+    validUrls[0]?.original ??
+    null
+  );
 }
 
 function isTrackingParam(param: string): boolean {

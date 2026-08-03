@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import { Queue } from "bullmq";
 import postgres from "postgres";
 
 const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
@@ -25,6 +26,7 @@ const environment = {
   API_PORT: "3100",
   ADMIN_API_KEY: adminKey,
   NOTIFICATION_PROVIDER: "fake",
+  TELEGRAM_ENABLED: "false",
   NODE_ENV: "test"
 };
 
@@ -108,6 +110,7 @@ async function stop(child: ChildProcess | undefined) {
 let api: ChildProcess | undefined;
 let worker: ChildProcess | undefined;
 let sql: ReturnType<typeof postgres> | undefined;
+let telegramQueue: Queue | undefined;
 
 try {
   command(docker, [
@@ -172,6 +175,72 @@ try {
     "API health"
   );
 
+  const telegramMessageId = String(Date.now());
+  const telegramPeerId = "-1001234567890";
+  const telegramJobId = `telegram-ingest-e2e-${randomUUID()}`;
+  const telegramData = {
+    peerId: telegramPeerId,
+    messageId: telegramMessageId,
+    senderId: "7000000001",
+    text: "RTX 4060 8GB por R$ 1.899 no Pix https://t.me/ofertas https://www.kabum.com.br/produto/123456",
+    capturedAt: new Date().toISOString(),
+    urls: ["https://t.me/ofertas", "https://www.kabum.com.br/produto/123456"],
+    notifyEligible: false,
+    chatTitle: "Ofertas E2E",
+    chatUsername: "ofertas_e2e",
+    originalPayload: {
+      id: telegramMessageId,
+      peerId: telegramPeerId,
+      capturedUrls: ["https://t.me/ofertas", "https://www.kabum.com.br/produto/123456"]
+    }
+  };
+  telegramQueue = new Queue("telegram-ingest", {
+    connection: { host: "127.0.0.1", port: 56379 }
+  });
+  await telegramQueue.add("telegram-message", telegramData, { jobId: telegramJobId });
+  await telegramQueue.add("telegram-message", telegramData, { jobId: telegramJobId });
+
+  sql = postgres(databaseUrl, { max: 1 });
+  const telegramRaw = await eventually(async () => {
+    const rows = await sql!<
+      Array<{
+        id: string;
+        suppliedUrl: string | null;
+        capturedUrls: string[];
+        status: string;
+      }>
+    >`
+      select rm.id, rm.supplied_url as "suppliedUrl",
+        rm.original_payload -> 'capturedUrls' as "capturedUrls", rm.status::text
+      from raw_messages rm
+      join sources s on s.id = rm.source_id
+      where s.kind = 'telegram' and s.name = ${`telegram:${telegramPeerId}`}
+        and rm.external_id = ${telegramMessageId}
+    `;
+    return rows[0]?.status === "completed" ? rows[0] : null;
+  }, "Telegram ingest queue and raw pipeline");
+  assert.equal(
+    telegramRaw.suppliedUrl,
+    "https://www.kabum.com.br/produto/123456",
+    "Telegram ingestion must prefer the store URL"
+  );
+  assert.deepEqual(telegramRaw.capturedUrls, telegramData.urls);
+  const telegramTrace = await sql<
+    Array<{ rawCount: number; outboxCount: number; parseCount: number }>
+  >`
+    select
+      (select count(*)::int from raw_messages where id = ${telegramRaw.id}) as "rawCount",
+      (select count(*)::int from outbox_events
+        where aggregate_id = ${telegramRaw.id} and topic = 'raw-message.created') as "outboxCount",
+      (select count(*)::int from raw_message_parses
+        where raw_message_id = ${telegramRaw.id}) as "parseCount"
+  `;
+  assert.deepEqual(
+    telegramTrace[0],
+    { rawCount: 1, outboxCount: 1, parseCount: 1 },
+    "Telegram job replay must remain idempotent through PostgreSQL and outbox"
+  );
+
   const installationId = randomUUID();
   await request("/v1/installations", {
     method: "POST",
@@ -200,8 +269,6 @@ try {
     body: JSON.stringify(manual)
   });
   assert.equal(duplicate.messageId, imported.messageId, "manual ingestion must be idempotent");
-
-  sql = postgres(databaseUrl, { max: 1 });
 
   await eventually(async () => {
     const messages = await request<{ items: Array<{ id: string; status: string }> }>(
@@ -279,6 +346,11 @@ try {
   assert.deepEqual(traces[0], { parses: 1, mentions: 1, snapshots: 1 });
   console.log(`Local MVP journey passed: message=${imported.messageId} offer=${offer.id}`);
 } finally {
+  try {
+    await telegramQueue?.close();
+  } catch {
+    // Continue cleanup even if Redis is already unavailable.
+  }
   try {
     if (sql) await sql.end({ timeout: 2 });
   } catch {

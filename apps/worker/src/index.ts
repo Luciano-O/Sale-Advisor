@@ -5,6 +5,9 @@ export { processScoringFixtureFile, scoreConsolidatedOffers } from "./process-sc
 export { WorkerPipeline, InMemoryWorkerRepository } from "./pipeline.js";
 export { FakeNotificationProvider, FcmNotificationProvider } from "./notification.js";
 export { DEFAULT_JOB_OPTIONS, PIPELINE_QUEUES } from "./queue-config.js";
+export { readTelegramConfig } from "./telegram-config.js";
+export { mapTelegramMessage } from "./telegram-message.js";
+export { telegramIngestJobId, TELEGRAM_INGEST_QUEUE } from "./telegram-queue.js";
 export type { ProcessFixturesOptions, RawFixtureMessage } from "./process-fixtures.js";
 export type { ProcessScoringFixturesOptions } from "./process-scoring-fixtures.js";
 

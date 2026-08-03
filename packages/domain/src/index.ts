@@ -11,7 +11,7 @@ export {
   scoreOffersWithPriceHistory
 } from "./price-history.js";
 export { normalizeStore, normalizeStoreDomain } from "./store.js";
-export { normalizeUrl } from "./url.js";
+export { extractHttpUrls, normalizeUrl, selectPrimaryOfferUrl } from "./url.js";
 export type {
   BuildOfferCandidateInput,
   CanonicalGpuProduct,

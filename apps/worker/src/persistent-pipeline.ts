@@ -13,6 +13,7 @@ interface RawRow {
   text: string;
   capturedAt: Date;
   suppliedUrl: string | null;
+  originalPayload: { capturedUrls?: unknown };
   notifyEligible: boolean;
 }
 
@@ -69,7 +70,8 @@ export class PersistentPipelineService implements OnApplicationShutdown {
     `;
     if (existing[0]) return existing[0].status === "completed";
     const rows = await this.connection.client<RawRow[]>`
-      select id, text, captured_at as "capturedAt", supplied_url as "suppliedUrl", notify_eligible as "notifyEligible"
+      select id, text, captured_at as "capturedAt", supplied_url as "suppliedUrl",
+        original_payload as "originalPayload", notify_eligible as "notifyEligible"
       from raw_messages where id = ${rawMessageId} limit 1
     `;
     const raw = rows[0];
@@ -78,7 +80,14 @@ export class PersistentPipelineService implements OnApplicationShutdown {
       rawText: raw.text,
       capturedAt: raw.capturedAt.toISOString(),
       rawMessageId: raw.id,
-      ...(raw.suppliedUrl ? { url: raw.suppliedUrl } : {})
+      ...(raw.suppliedUrl ? { url: raw.suppliedUrl } : {}),
+      ...(Array.isArray(raw.originalPayload.capturedUrls)
+        ? {
+            urls: raw.originalPayload.capturedUrls.filter(
+              (url): url is string => typeof url === "string"
+            )
+          }
+        : {})
     });
     const complete = Boolean(candidate.product && candidate.price && candidate.store);
     const status = complete ? "completed" : "partial";
