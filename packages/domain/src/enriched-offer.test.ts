@@ -50,7 +50,7 @@ describe("enriched offer parsing", () => {
       boardBrand: "ASUS",
       condition: "open_box",
       coupon: "GPU200",
-      parserVersion: 2,
+      parserVersion: 3,
       effectivePrice: { amountInCents: 349900, method: "pix" }
     });
   });

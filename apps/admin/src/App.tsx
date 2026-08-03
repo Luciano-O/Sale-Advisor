@@ -115,19 +115,10 @@ function PageContent({ page, adminKey }: { page: Page; adminKey: string }) {
 
 function Dashboard({ adminKey }: { adminKey: string }) {
   const [data, setData] = useState<Record<string, unknown> | null>(null);
-  const [telegram, setTelegram] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
     void adminRequest<Record<string, unknown>>("/v1/admin/dashboard", adminKey)
       .then(setData)
-      .catch((reason) => setError(String(reason)));
-    void adminRequest<{ integrations: Record<string, unknown>[] }>(
-      "/v1/admin/integrations",
-      adminKey
-    )
-      .then((response) =>
-        setTelegram(response.integrations.find((item) => item.kind === "telegram") ?? null)
-      )
       .catch((reason) => setError(String(reason)));
   }, [adminKey]);
   return (
@@ -144,19 +135,7 @@ function Dashboard({ adminKey }: { adminKey: string }) {
           tone="green"
         />
       </div>
-      <div className="panel">
-        <h2>Saúde do Telegram</h2>
-        <p>
-          Estado: {String(telegram?.status ?? "carregando")} ·{" "}
-          {Number((telegram?.instances as Record<string, number> | undefined)?.active ?? 0)} ativa,{" "}
-          {Number((telegram?.instances as Record<string, number> | undefined)?.standby ?? 0)}{" "}
-          standby
-        </p>
-        <p>
-          Fontes: {Number(telegram?.persistedSourceCount ?? 0)}/
-          {Number(telegram?.configuredSourceCount ?? 0)} · retry {Number(telegram?.retryCount ?? 0)}
-        </p>
-      </div>
+      <TelegramHealthCard adminKey={adminKey} />
       <div className="panel">
         <h2>Operação local</h2>
         <p>
@@ -316,6 +295,7 @@ function CurationPage({
     <section>
       <Header title={page} subtitle={curationSubtitle(page)} />
       {error && <Notice tone="error">{error}</Notice>}
+      {page === "Sources e stores" && <TelegramHealthCard adminKey={adminKey} />}
       <div className="panel table">
         <div className="table-head">
           <span>Registros</span>
@@ -339,6 +319,44 @@ function CurationPage({
         <CurationActions page={page} adminKey={adminKey} selected={selected} />
       )}
     </section>
+  );
+}
+
+function TelegramHealthCard({ adminKey }: { adminKey: string }) {
+  const [telegram, setTelegram] = useState<Record<string, unknown> | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    void adminRequest<{ integrations: Record<string, unknown>[] }>(
+      "/v1/admin/integrations",
+      adminKey
+    )
+      .then((response) =>
+        setTelegram(response.integrations.find((item) => item.kind === "telegram") ?? null)
+      )
+      .catch((reason) => setError(String(reason)));
+  }, [adminKey]);
+  return (
+    <div className="panel">
+      <h2>Saúde do Telegram</h2>
+      {error ? (
+        <Notice tone="error">{error}</Notice>
+      ) : (
+        <>
+          <p>
+            Estado: {String(telegram?.status ?? "carregando")} ·{" "}
+            {Number((telegram?.instances as Record<string, number> | undefined)?.active ?? 0)}{" "}
+            ativa,{" "}
+            {Number((telegram?.instances as Record<string, number> | undefined)?.standby ?? 0)}{" "}
+            standby
+          </p>
+          <p>
+            Fontes: {Number(telegram?.persistedSourceCount ?? 0)}/
+            {Number(telegram?.configuredSourceCount ?? 0)} · retry{" "}
+            {Number(telegram?.retryCount ?? 0)}
+          </p>
+        </>
+      )}
+    </div>
   );
 }
 

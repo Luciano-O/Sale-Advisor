@@ -16,6 +16,7 @@ test-results/
 
 # Environment
 .env
+.sale-advisor-reprocess-checkpoint.json
 .env.*
 !.env.example
 

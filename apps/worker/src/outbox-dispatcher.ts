@@ -13,7 +13,9 @@ export class OutboxDispatcher implements OnModuleInit, OnApplicationShutdown {
   private timer?: ReturnType<typeof setInterval>;
   private dispatching = false;
 
-  constructor(@InjectQueue("parse") private readonly parseQueue: Queue<PipelineJobData>) {}
+  constructor(
+    @InjectQueue("resolve-url") private readonly resolveUrlQueue: Queue<PipelineJobData>
+  ) {}
 
   onModuleInit() {
     this.timer = setInterval(() => void this.dispatch(), 1_000);
@@ -37,8 +39,8 @@ export class OutboxDispatcher implements OnModuleInit, OnApplicationShutdown {
           and available_at <= now() order by created_at limit 100
       `;
       for (const event of events) {
-        await this.parseQueue.add(
-          "parse",
+        await this.resolveUrlQueue.add(
+          "resolve-url",
           {
             rawMessageId: event.aggregateId,
             version: event.version,
@@ -46,7 +48,7 @@ export class OutboxDispatcher implements OnModuleInit, OnApplicationShutdown {
           },
           {
             ...DEFAULT_JOB_OPTIONS,
-            jobId: deterministicJobId("parse", event.aggregateId, event.version)
+            jobId: deterministicJobId("resolve-url", event.aggregateId, event.version)
           }
         );
         await this.connection
