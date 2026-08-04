@@ -46,7 +46,7 @@ export function readApiConfig(
 
   return {
     ...common,
-    apiPort: integer(environment, "API_PORT", 3000, 1, 65_535),
+    apiPort: apiPort(environment),
     adminApiKey,
     corsAllowedOrigins,
     trustProxyHops: integer(environment, "TRUST_PROXY_HOPS", 0, 0, 3),
@@ -85,6 +85,12 @@ export function readCommonConfig(
   const logLevel = environment.LOG_LEVEL?.trim() || "info";
   if (!isLogLevel(logLevel)) throw new Error("LOG_LEVEL is invalid");
   return { nodeEnvironment, databaseUrl, redisUrl, logLevel };
+}
+
+function apiPort(environment: Record<string, string | undefined>): number {
+  if (environment.API_PORT !== undefined) return integer(environment, "API_PORT", 3000, 1, 65_535);
+  if (environment.PORT !== undefined) return integer(environment, "PORT", 3000, 1, 65_535);
+  return 3000;
 }
 
 function required(environment: Record<string, string | undefined>, key: string): string {

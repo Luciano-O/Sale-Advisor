@@ -58,6 +58,13 @@ describe("runtime configuration", () => {
     expect(() => readApiConfig({ ...base, TRUST_PROXY_HOPS: "4" })).toThrow(/TRUST_PROXY_HOPS/);
   });
 
+  it("uses Railway PORT while preserving API_PORT precedence", () => {
+    expect(readApiConfig({ ...base, PORT: "8080" }).apiPort).toBe(8080);
+    expect(readApiConfig({ ...base, PORT: "8080", API_PORT: "3100" }).apiPort).toBe(3100);
+    expect(() => readApiConfig({ ...base, PORT: "0" })).toThrow(/PORT/);
+    expect(() => readApiConfig({ ...base, PORT: "invalid" })).toThrow(/PORT/);
+  });
+
   it("rejects invalid environments, URLs, log levels, providers and origins", () => {
     expect(() => readApiConfig({ ...base, NODE_ENV: "invalid" })).toThrow(/NODE_ENV/);
     expect(() => readApiConfig({ ...base, DATABASE_URL: "mysql://localhost/db" })).toThrow(
