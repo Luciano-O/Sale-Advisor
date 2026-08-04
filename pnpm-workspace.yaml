@@ -3,6 +3,7 @@ packages:
   - "packages/*"
 
 nodeLinker: hoisted
+injectWorkspacePackages: true
 virtualStoreDir: .pnpm
 virtualStoreDirMaxLength: 24
 

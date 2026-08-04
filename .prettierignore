@@ -1,6 +1,9 @@
 node_modules
 dist
 coverage
+Dockerfile
+.dockerignore
+.env.production.example
 .expo
 apps/mobile/expo-env.d.ts
 pnpm-lock.yaml
