@@ -56,6 +56,29 @@ function pnpm(args: string[]) {
   command(process.execPath, [pnpmCli, ...args]);
 }
 
+async function pnpmAsync(args: string[]): Promise<void> {
+  if (!pnpmCli) throw new Error("npm_execpath is required to run the workspace package manager");
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(process.execPath, [pnpmCli, ...args], {
+      cwd: repositoryRoot,
+      env: environment,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.on("data", (chunk) => (stdout += String(chunk)));
+    child.stderr?.on("data", (chunk) => (stderr += String(chunk)));
+    child.once("error", reject);
+    child.once("exit", (code) => {
+      if (code === 0) resolve();
+      else
+        reject(
+          new Error([`pnpm ${args.join(" ")} failed with ${code}`, stdout, stderr].join("\n"))
+        );
+    });
+  });
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiUrl}${path}`, {
     ...init,
@@ -124,11 +147,15 @@ try {
     "--wait"
   ]);
   pnpm(["db:rollback:local"]);
-  pnpm(["db:migrate"]);
+  await Promise.all([pnpmAsync(["db:migrate"]), pnpmAsync(["db:migrate"])]);
   pnpm(["db:seed"]);
   pnpm(["db:seed"]);
 
   sql = postgres(databaseUrl, { max: 1 });
+  const migrationRows = await sql<Array<{ migrationCount: number }>>`
+    select count(*)::int as "migrationCount" from drizzle.__drizzle_migrations
+  `;
+  assert.equal(migrationRows[0]?.migrationCount, 5, "concurrent migration runners must serialize");
   const productRows = await sql<Array<{ productCount: number }>>`
     select count(*)::int as "productCount" from products
   `;
