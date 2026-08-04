@@ -25,7 +25,7 @@ describe("baseline test prerequisites", () => {
     ) as { scripts: Record<string, string> };
 
     expect(packageJson.scripts["build:test-dependencies"]).toBe(
-      "corepack pnpm -r --filter @sale-advisor/contracts --filter @sale-advisor/domain --filter @sale-advisor/database --if-present build"
+      "corepack pnpm -r --filter @sale-advisor/config --filter @sale-advisor/shared --filter @sale-advisor/contracts --filter @sale-advisor/domain --filter @sale-advisor/database --if-present build"
     );
     expect(packageJson.scripts.test).toMatch(
       /^corepack pnpm build:test-dependencies && vitest run scripts\/preflight\.test\.ts/u

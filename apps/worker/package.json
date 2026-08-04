@@ -5,12 +5,13 @@
   "description": "Workers de coleta, parsing, deduplicacao, scoring e notificacoes.",
   "type": "module",
   "scripts": {
-    "build": "corepack pnpm --filter @sale-advisor/domain build && corepack pnpm --filter @sale-advisor/database build && tsc -p tsconfig.json",
+    "build": "corepack pnpm --filter @sale-advisor/config build && corepack pnpm --filter @sale-advisor/shared build && corepack pnpm --filter @sale-advisor/domain build && corepack pnpm --filter @sale-advisor/database build && tsc -p tsconfig.json",
     "process:fixtures": "corepack pnpm build && node dist/index.js",
     "score:fixtures": "corepack pnpm build && node dist/process-scoring-fixtures.js",
     "telegram:login": "tsx src/telegram-login.ts",
+    "reprocess:target-urls": "tsx src/reprocess-target-urls.ts",
     "test": "vitest run --coverage",
-    "typecheck": "corepack pnpm --filter @sale-advisor/domain build && tsc -p tsconfig.json --noEmit",
+    "typecheck": "corepack pnpm --filter @sale-advisor/config build && corepack pnpm --filter @sale-advisor/shared build && corepack pnpm --filter @sale-advisor/domain build && tsc -p tsconfig.json --noEmit",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js"
   },
@@ -18,8 +19,10 @@
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
+    "@sale-advisor/config": "workspace:*",
     "@sale-advisor/database": "workspace:*",
     "@sale-advisor/domain": "workspace:*",
+    "@sale-advisor/shared": "workspace:*",
     "bullmq": "^5.58.5",
     "firebase-admin": "^13.4.0",
     "ioredis": "^5.7.0",
@@ -28,7 +31,6 @@
     "teleproto": "^1.228.4"
   },
   "devDependencies": {
-    "@sale-advisor/config": "workspace:*",
     "@vitest/coverage-v8": "^2.1.9",
     "tsx": "^4.20.3"
   }

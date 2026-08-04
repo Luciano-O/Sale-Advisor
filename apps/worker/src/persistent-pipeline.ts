@@ -3,10 +3,16 @@ import { createHash } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import type { OnApplicationShutdown } from "@nestjs/common";
 import { createDatabase } from "@sale-advisor/database";
-import { buildOfferCandidate, scoreOffer } from "@sale-advisor/domain";
+import {
+  buildOfferCandidate,
+  extractHttpUrls,
+  scoreOffer,
+  selectPrimaryOfferUrl
+} from "@sale-advisor/domain";
 import type { ConsolidatedOffer, OfferCandidate, PriceSnapshot } from "@sale-advisor/domain";
 
-import type { NotificationProvider } from "./notification.js";
+import { asNotificationSendError, type NotificationProvider } from "./notification.js";
+import { SafeUrlResolver, URL_RESOLVER_VERSION, type UrlResolutionRecord } from "./url-resolver.js";
 
 interface RawRow {
   id: string;
@@ -59,14 +65,80 @@ interface NotificationTargetRow {
   minimum_label: string;
 }
 
+interface UrlResolutionRow {
+  id: string;
+  originalUrl: string;
+  finalUrl: string | null;
+  redirectChain: string[];
+  status: "direct" | "resolved" | "failed";
+  statusCode: number | null;
+  resolverVersion: string;
+  attempts: number;
+  error: { code: string } | null;
+  resolvedAt: Date;
+  expiresAt: Date | null;
+}
+
 @Injectable()
 export class PersistentPipelineService implements OnApplicationShutdown {
   private readonly connection = createDatabase();
-  constructor(private readonly notifications: NotificationProvider) {}
+  private readonly urlResolver: SafeUrlResolver;
+  constructor(private readonly notifications: NotificationProvider) {
+    this.urlResolver = new SafeUrlResolver({
+      cache: {
+        get: async (hash) => {
+          const rows = await this.connection.client<UrlResolutionRow[]>`
+            select id, original_url as "originalUrl", final_url as "finalUrl",
+              redirect_chain as "redirectChain", status, status_http as "statusCode",
+              resolver_version as "resolverVersion", attempts, error,
+              resolved_at as "resolvedAt", expires_at as "expiresAt"
+            from url_resolutions where original_url_hash = ${hash}
+              and resolver_version = ${URL_RESOLVER_VERSION} and status = 'resolved'
+              and expires_at > now() order by resolved_at desc limit 1
+          `;
+          return rows[0] ? mapUrlResolution(rows[0]) : null;
+        },
+        set: async () => undefined
+      }
+    });
+  }
 
-  async parse(rawMessageId: string): Promise<boolean> {
+  async resolveUrl(rawMessageId: string, pipelineVersion: number): Promise<void> {
+    const rows = await this.connection.client<RawRow[]>`
+      select id, text, captured_at as "capturedAt", supplied_url as "suppliedUrl",
+        original_payload as "originalPayload", notify_eligible as "notifyEligible"
+      from raw_messages where id = ${rawMessageId} limit 1
+    `;
+    const raw = rows[0];
+    if (!raw) throw new Error(`Raw message ${rawMessageId} not found`);
+    const originalUrl = selectPrimaryOfferUrl(collectRawUrls(raw));
+    if (!originalUrl) return;
+    const originalUrlHash = createHash("sha256").update(originalUrl).digest("hex");
+    const existing = await this.connection.client<{ id: string }[]>`
+      select id from url_resolutions where raw_message_id = ${rawMessageId}
+        and original_url_hash = ${originalUrlHash} and resolver_version = ${URL_RESOLVER_VERSION}
+        and pipeline_version = ${pipelineVersion} limit 1
+    `;
+    if (existing[0]) return;
+    const resolution = await this.urlResolver.resolve(originalUrl);
+    await this.connection.client`
+      insert into url_resolutions (
+        raw_message_id, original_url, original_url_hash, final_url, redirect_chain, status,
+        status_http, resolver_version, pipeline_version, attempts, error, resolved_at, expires_at
+      ) values (
+        ${rawMessageId}, ${resolution.originalUrl}, ${originalUrlHash}, ${resolution.finalUrl},
+        ${this.connection.client.json(resolution.redirectChain)}, ${resolution.status},
+        ${resolution.statusCode}, ${resolution.resolverVersion}, ${pipelineVersion},
+        ${resolution.attempts}, ${this.connection.client.json(resolution.error)},
+        ${resolution.resolvedAt}, ${resolution.expiresAt}
+      ) on conflict (raw_message_id, original_url_hash, resolver_version, pipeline_version) do nothing
+    `;
+  }
+
+  async parse(rawMessageId: string, pipelineVersion: number): Promise<boolean> {
     const existing = await this.connection.client<{ id: string; status: string }[]>`
-      select id, status from raw_message_parses where raw_message_id = ${rawMessageId} and parser_version = 2 limit 1
+      select id, status from raw_message_parses where raw_message_id = ${rawMessageId}
+        and version = ${pipelineVersion} and parser_version = 3 limit 1
     `;
     if (existing[0]) return existing[0].status === "completed";
     const rows = await this.connection.client<RawRow[]>`
@@ -76,10 +148,21 @@ export class PersistentPipelineService implements OnApplicationShutdown {
     `;
     const raw = rows[0];
     if (!raw) throw new Error(`Raw message ${rawMessageId} not found`);
+    const resolutionRows = await this.connection.client<UrlResolutionRow[]>`
+      select id, original_url as "originalUrl", final_url as "finalUrl",
+        redirect_chain as "redirectChain", status, status_http as "statusCode",
+        resolver_version as "resolverVersion", attempts, error,
+        resolved_at as "resolvedAt", expires_at as "expiresAt"
+      from url_resolutions where raw_message_id = ${rawMessageId}
+        and pipeline_version = ${pipelineVersion} order by created_at desc limit 1
+    `;
+    const resolution = resolutionRows[0];
     const candidate = buildOfferCandidate({
       rawText: raw.text,
       capturedAt: raw.capturedAt.toISOString(),
       rawMessageId: raw.id,
+      ...(resolution?.finalUrl ? { resolvedUrl: resolution.finalUrl } : {}),
+      ...(resolution?.status === "failed" ? { urlResolutionFailed: true } : {}),
       ...(raw.suppliedUrl ? { url: raw.suppliedUrl } : {}),
       ...(Array.isArray(raw.originalPayload.capturedUrls)
         ? {
@@ -89,16 +172,19 @@ export class PersistentPipelineService implements OnApplicationShutdown {
           }
         : {})
     });
-    const complete = Boolean(candidate.product && candidate.price && candidate.store);
+    const complete = Boolean(
+      !candidate.urlResolutionFailed && candidate.product && candidate.price && candidate.store
+    );
     const status = complete ? "completed" : "partial";
     await this.connection.client.begin(async (sql) => {
-      const versions = await sql<{ version: number }[]>`
-        select coalesce(max(version), 0)::int + 1 as version from raw_message_parses where raw_message_id = ${rawMessageId}
-      `;
       await sql`
-        insert into raw_message_parses (raw_message_id, version, parser_version, status, candidate, errors)
-        values (${rawMessageId}, ${versions[0]?.version ?? 1}, 2, ${status}::processing_status,
-          ${sql.json(JSON.parse(JSON.stringify(candidate)))}, ${sql.json(complete ? [] : ["incomplete_candidate"])})
+        insert into raw_message_parses (
+          raw_message_id, version, parser_version, url_resolution_id, status, candidate, errors
+        ) values (
+          ${rawMessageId}, ${pipelineVersion}, 3, ${resolution?.id ?? null}, ${status}::processing_status,
+          ${sql.json(JSON.parse(JSON.stringify(candidate)))},
+          ${sql.json(complete ? [] : [candidate.urlResolutionFailed ? "url_resolution_failed" : "incomplete_candidate"])}
+        )
       `;
       await sql`update raw_messages set status = ${status}::processing_status, updated_at = now() where id = ${rawMessageId}`;
     });
@@ -186,24 +272,60 @@ export class PersistentPipelineService implements OnApplicationShutdown {
         offerId = inserted[0]?.id;
       }
       if (!offerId) throw new Error("Could not consolidate offer");
-      await sql`update offer_mentions set active = false where raw_message_id = ${rawMessageId} and parse_id <> ${parsed.parseId}`;
+      const priorOffers = await sql<{ offerId: string }[]>`
+        select distinct offer_id as "offerId" from offer_mentions
+        where raw_message_id = ${rawMessageId} and parse_id <> ${parsed.parseId} and active
+      `;
+      await sql`
+        update offer_mentions set active = false
+        where raw_message_id = ${rawMessageId} and parse_id <> ${parsed.parseId} and active
+      `;
+      await sql`
+        update price_snapshots set active = false, superseded_at = now()
+        where raw_message_id = ${rawMessageId}
+          and parse_id is distinct from ${parsed.parseId} and active
+      `;
       const mentions = await sql<{ id: string }[]>`
         insert into offer_mentions (offer_id, raw_message_id, parse_id, mentioned_at)
         values (${offerId}, ${rawMessageId}, ${parsed.parseId}, ${candidate.capturedAt})
         on conflict (raw_message_id, parse_id) do nothing returning id
       `;
       await sql`
-        insert into price_snapshots (offer_id, raw_message_id, amount_in_cents, payment_method, observed_at)
-        values (${offerId}, ${rawMessageId}, ${price.amountInCents}, ${price.paymentMethod}, ${candidate.capturedAt})
-        on conflict (offer_id, raw_message_id, amount_in_cents) do nothing
+        insert into price_snapshots (
+          offer_id, raw_message_id, parse_id, amount_in_cents, payment_method, observed_at
+        ) values (
+          ${offerId}, ${rawMessageId}, ${parsed.parseId}, ${price.amountInCents},
+          ${price.paymentMethod}, ${candidate.capturedAt}
+        ) on conflict (offer_id, raw_message_id, parse_id, amount_in_cents) do nothing
       `;
-      if (mentions[0])
+      if (mentions[0]) {
         await sql`
-        update offers set current_price_in_cents = ${price.amountInCents},
-          lowest_price_in_cents = least(lowest_price_in_cents, ${price.amountInCents}),
-          price_bucket_in_cents = ${priceBucketInCents}, last_seen_at = greatest(last_seen_at, ${candidate.capturedAt}),
-          mention_count = mention_count + 1, updated_at = now() where id = ${offerId}
-      `;
+          update offers set current_price_in_cents = ${price.amountInCents},
+            lowest_price_in_cents = least(lowest_price_in_cents, ${price.amountInCents}),
+            price_bucket_in_cents = ${priceBucketInCents},
+            last_seen_at = greatest(last_seen_at, ${candidate.capturedAt}), updated_at = now()
+          where id = ${offerId}
+        `;
+      }
+      for (const affectedOfferId of new Set([
+        ...priorOffers.map((item) => item.offerId),
+        offerId
+      ])) {
+        await sql`
+          update offers set
+            mention_count = (select count(*)::int from offer_mentions where offer_id = ${affectedOfferId} and active),
+            status = case
+              when exists (select 1 from offer_mentions where offer_id = ${affectedOfferId} and active) then 'active'::offer_status
+              else 'expired'::offer_status
+            end,
+            expires_at = case
+              when exists (select 1 from offer_mentions where offer_id = ${affectedOfferId} and active) then null
+              else coalesce(expires_at, now())
+            end,
+            updated_at = now()
+          where id = ${affectedOfferId}
+        `;
+      }
       return offerId;
     });
   }
@@ -211,7 +333,8 @@ export class PersistentPipelineService implements OnApplicationShutdown {
   async scoreAffected(rawMessageId: string): Promise<void> {
     const origins = await this.connection.client<{ productId: string; observedAt: Date }[]>`
       select o.product_id as "productId", ps.observed_at as "observedAt" from price_snapshots ps
-      join offers o on o.id = ps.offer_id where ps.raw_message_id = ${rawMessageId} order by ps.observed_at desc limit 1
+      join offers o on o.id = ps.offer_id where ps.raw_message_id = ${rawMessageId} and ps.active
+      order by ps.observed_at desc limit 1
     `;
     const origin = origins[0];
     if (!origin) return;
@@ -224,7 +347,7 @@ export class PersistentPipelineService implements OnApplicationShutdown {
     const snapshots = await this.connection.client<PersistentSnapshotRow[]>`
       select ps.offer_id, o.product_id, ps.observed_at, ps.amount_in_cents, s.domain, o.store_product_id, o.mention_count
       from price_snapshots ps join offers o on o.id = ps.offer_id join stores s on s.id = o.store_id
-      where o.product_id = ${origin.productId}
+      where o.product_id = ${origin.productId} and ps.active
     `;
     const domainSnapshots: PriceSnapshot[] = snapshots.map((row) => ({
       offerId: row.offer_id,
@@ -278,12 +401,29 @@ export class PersistentPipelineService implements OnApplicationShutdown {
       where d.push_enabled or ${this.notifications.name} = 'fake'
     `;
     const rank: Record<string, number> = { normal: 0, boa: 1, muito_boa: 2, excepcional: 3 };
+    let retryableFailure: Error | null = null;
     for (const target of targets) {
       if ((rank[row.label] ?? 0) < (rank[target.minimum_label] ?? 1)) continue;
       const delivery = await this.connection.client<{ id: string }[]>`
-        insert into notification_deliveries (installation_id, offer_id, provider, status, payload)
-        values (${target.id}, ${row.offer_id}, ${this.notifications.name}, 'pending', ${this.connection.client.json({ offerId: row.offer_id })})
-        on conflict (installation_id, offer_id) do nothing returning id
+        insert into notification_deliveries (
+          installation_id, offer_id, provider, status, payload, attempts, attempted_at
+        ) values (
+          ${target.id}, ${row.offer_id}, ${this.notifications.name}, 'pending',
+          ${this.connection.client.json({ offerId: row.offer_id })}, 1, now()
+        )
+        on conflict (installation_id, offer_id) do update set
+          provider = excluded.provider,
+          status = 'pending',
+          payload = excluded.payload,
+          attempts = notification_deliveries.attempts + 1,
+          error = null,
+          attempted_at = now()
+        where notification_deliveries.status = 'failed'
+          or (
+            notification_deliveries.status = 'pending'
+            and notification_deliveries.attempted_at < now() - interval '5 minutes'
+          )
+        returning id
       `;
       const deliveryId = delivery[0]?.id;
       if (!deliveryId) continue;
@@ -295,23 +435,61 @@ export class PersistentPipelineService implements OnApplicationShutdown {
         await this.connection
           .client`update notification_deliveries set status = 'sent' where id = ${deliveryId}`;
       } catch (error) {
+        const failure = asNotificationSendError(error);
         await this.connection
-          .client`update notification_deliveries set status = 'failed', error = ${String(error)} where id = ${deliveryId}`;
-        throw error;
+          .client`update notification_deliveries set status = 'failed', error = ${failure.code} where id = ${deliveryId}`;
+        if (failure.retryable) retryableFailure ??= failure;
+        else
+          await this.connection.client`
+            update device_installations set push_enabled = false, push_target = null, updated_at = now()
+            where id = ${target.id}
+          `;
       }
     }
+    if (retryableFailure) throw retryableFailure;
   }
 
   async markFailed(rawMessageId: string, error: unknown) {
     await this.connection.client`
       update raw_messages set status = 'failed', original_payload = original_payload ||
-        ${this.connection.client.json({ finalError: String(error) })}::jsonb, updated_at = now() where id = ${rawMessageId}
+        ${this.connection.client.json({ finalError: errorName(error) })}::jsonb, updated_at = now() where id = ${rawMessageId}
     `;
   }
 
   async onApplicationShutdown() {
     await this.connection.close();
   }
+}
+
+function collectRawUrls(raw: RawRow) {
+  return Array.from(
+    new Set([
+      ...(raw.suppliedUrl ? [raw.suppliedUrl] : []),
+      ...(Array.isArray(raw.originalPayload.capturedUrls)
+        ? raw.originalPayload.capturedUrls.filter((url): url is string => typeof url === "string")
+        : []),
+      ...extractHttpUrls(raw.text)
+    ])
+  );
+}
+
+function mapUrlResolution(row: UrlResolutionRow): UrlResolutionRecord {
+  return {
+    originalUrl: row.originalUrl,
+    finalUrl: row.finalUrl,
+    redirectChain: row.redirectChain,
+    status: row.status,
+    statusCode: row.statusCode,
+    resolverVersion: row.resolverVersion,
+    attempts: row.attempts,
+    error: row.error,
+    resolvedAt: row.resolvedAt.toISOString(),
+    expiresAt: row.expiresAt?.toISOString() ?? null
+  };
+}
+
+function errorName(error: unknown) {
+  return error instanceof Error ? error.name : "UnknownError";
 }
 
 function mapConsolidatedOffer(row: PersistentOfferRow): ConsolidatedOffer {

@@ -6,8 +6,10 @@
   "scripts": {
     "android:prepare": "powershell -ExecutionPolicy Bypass -File ./infra/android-acceptance.ps1 -Visible",
     "build": "corepack pnpm -r --if-present build",
-    "build:test-dependencies": "corepack pnpm -r --filter @sale-advisor/contracts --filter @sale-advisor/domain --filter @sale-advisor/database --if-present build",
+    "build:test-dependencies": "corepack pnpm -r --filter @sale-advisor/config --filter @sale-advisor/shared --filter @sale-advisor/contracts --filter @sale-advisor/domain --filter @sale-advisor/database --if-present build",
     "bootstrap": "powershell -ExecutionPolicy Bypass -File ./infra/bootstrap.ps1",
+    "container:build": "node scripts/container-build.mjs",
+    "container:smoke": "node scripts/container-smoke.mjs",
     "db:generate": "corepack pnpm --filter @sale-advisor/database db:generate",
     "db:migrate": "corepack pnpm --filter @sale-advisor/database db:migrate",
     "db:rollback:local": "corepack pnpm --filter @sale-advisor/database db:rollback:local",
@@ -18,11 +20,12 @@
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings=0",
     "preflight": "node scripts/preflight.mjs",
-    "test": "corepack pnpm build:test-dependencies && vitest run scripts/preflight.test.ts && corepack pnpm -r --if-present test",
+    "test": "corepack pnpm build:test-dependencies && vitest run scripts/preflight.test.ts scripts/container-files.test.ts && corepack pnpm -r --if-present test",
     "test:e2e": "corepack pnpm build && corepack pnpm --filter @sale-advisor/admin test:e2e && corepack pnpm --filter @sale-advisor/e2e test:e2e",
     "typecheck": "corepack pnpm -r --if-present typecheck",
     "verify": "corepack pnpm format:check && corepack pnpm lint && corepack pnpm test && corepack pnpm typecheck && corepack pnpm build",
-    "verify:baseline": "corepack pnpm preflight && corepack pnpm verify && corepack pnpm test:e2e"
+    "verify:baseline": "corepack pnpm preflight && corepack pnpm verify && corepack pnpm test:e2e",
+    "verify:production": "corepack pnpm verify:baseline && corepack pnpm container:smoke"
   },
   "engines": {
     "node": "24.x",

@@ -31,6 +31,27 @@ export interface PublicOffer {
   score: { label: string; qualityScore: number; confidence: string; reasons: string[] };
 }
 
+export interface IntegrationHealth {
+  kind: "telegram";
+  enabled: boolean;
+  status: "disabled" | "healthy" | "unavailable" | "retrying" | "blocked";
+  heartbeatAt: string | null;
+  lastMessageAt: string | null;
+  activeInstanceId: string | null;
+  configuredSourceCount: number;
+  persistedSourceCount: number;
+  instances: { active: number; standby: number };
+  queues: { waiting: number; active: number; failed: number };
+  retryCount: number;
+  nextRetryAt: string | null;
+  lastError: Record<string, unknown> | null;
+}
+
+export interface RuntimeHealth {
+  checks: { database: "up"; redis: "up" };
+  outboxPending: number;
+}
+
 export interface ApiRepository {
   readonly kind: string;
   importMessages(request: ImportRequest): Promise<ImportResult>;
@@ -58,8 +79,9 @@ export interface ApiRepository {
       payload?: Record<string, string | number | boolean | null> | undefined;
     }>
   ): Promise<number>;
-  health(): Promise<{ outboxPending: number }>;
+  health(): Promise<RuntimeHealth>;
   adminDashboard(): Promise<Record<string, unknown>>;
+  adminIntegrations(): Promise<{ integrations: IntegrationHealth[] }>;
   adminList(resource: "messages" | "offers" | "products" | "sources" | "audit"): Promise<unknown[]>;
   adminAction(action: string, payload: Record<string, unknown>): Promise<Record<string, unknown>>;
 }
@@ -169,7 +191,10 @@ export class InMemoryApiRepository implements ApiRepository {
   }
 
   async health() {
-    return { outboxPending: this.outbox.length };
+    return {
+      checks: { database: "up" as const, redis: "up" as const },
+      outboxPending: this.outbox.length
+    };
   }
 
   async adminDashboard() {
@@ -184,6 +209,28 @@ export class InMemoryApiRepository implements ApiRepository {
           this.offers.filter((offer) => offer.score.label === label).length
         ])
       )
+    };
+  }
+
+  async adminIntegrations() {
+    return {
+      integrations: [
+        {
+          kind: "telegram" as const,
+          enabled: false,
+          status: "disabled" as const,
+          heartbeatAt: null,
+          lastMessageAt: null,
+          activeInstanceId: null,
+          configuredSourceCount: 0,
+          persistedSourceCount: 0,
+          instances: { active: 0, standby: 0 },
+          queues: { waiting: 0, active: 0, failed: 0 },
+          retryCount: 0,
+          nextRetryAt: null,
+          lastError: null
+        }
+      ]
     };
   }
 

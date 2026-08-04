@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { createDatabase } from "@sale-advisor/database";
+import { Queue } from "bullmq";
 
-import type { ApiRepository, ImportRequest, PublicOffer } from "./repository.js";
+import type { ApiRepository, ImportRequest, IntegrationHealth, PublicOffer } from "./repository.js";
 
 interface OfferRow {
   id: string;
@@ -30,6 +31,14 @@ interface OfferRow {
 export class PostgresApiRepository implements ApiRepository {
   readonly kind = "postgresql";
   private readonly connection = createDatabase();
+  private readonly telemetryQueues = [
+    "telegram-ingest",
+    "resolve-url",
+    "parse",
+    "consolidate",
+    "score",
+    "notify"
+  ].map((name) => new Queue(name, { connection: redisConnection() }));
 
   async importMessages(request: ImportRequest) {
     return this.connection.client.begin(async (sql) => {
@@ -185,10 +194,16 @@ export class PostgresApiRepository implements ApiRepository {
   }
 
   async health() {
-    const rows = await this.connection.client<
-      { count: number }[]
-    >`select count(*)::int as count from outbox_events where published_at is null`;
-    return { outboxPending: rows[0]?.count ?? 0 };
+    const [rows] = await Promise.all([
+      this.connection.client<
+        { count: number }[]
+      >`select count(*)::int as count from outbox_events where published_at is null`,
+      this.telemetryQueues[0]?.getJobCounts("waiting")
+    ]);
+    return {
+      checks: { database: "up" as const, redis: "up" as const },
+      outboxPending: rows[0]?.count ?? 0
+    };
   }
 
   async adminDashboard() {
@@ -210,6 +225,88 @@ export class PostgresApiRepository implements ApiRepository {
       failed: counts.failed ?? 0,
       outboxPending: outbox.outboxPending,
       offersByLabel: Object.fromEntries(labels.map((item) => [item.label, item.count]))
+    };
+  }
+
+  async adminIntegrations(): Promise<{ integrations: IntegrationHealth[] }> {
+    const enabled = process.env.TELEGRAM_ENABLED?.trim().toLowerCase() === "true";
+    const configuredSourceCount = enabled
+      ? new Set(
+          (process.env.TELEGRAM_CHATS ?? "")
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean)
+        ).size
+      : 0;
+    const [sourceRows, instanceRows, queueCounts] = await Promise.all([
+      this.connection.client<{ count: number }[]>`
+        select count(*)::int as count from sources where kind = 'telegram'
+      `,
+      this.connection.client<
+        Array<{
+          instanceId: string;
+          role: "active" | "standby";
+          state: IntegrationHealth["status"] | "starting" | "stopped";
+          heartbeatAt: Date | null;
+          lastMessageAt: Date | null;
+          retryCount: number;
+          nextRetryAt: Date | null;
+          lastError: Record<string, unknown> | null;
+        }>
+      >`
+        select instance_id as "instanceId", role::text, state::text,
+          heartbeat_at as "heartbeatAt", last_message_at as "lastMessageAt",
+          retry_count as "retryCount", next_retry_at as "nextRetryAt", last_error as "lastError"
+        from collector_instances where integration_kind = 'telegram'
+        order by (role = 'active') desc, heartbeat_at desc nulls last
+      `,
+      Promise.all(
+        this.telemetryQueues.map((queue) => queue.getJobCounts("waiting", "active", "failed"))
+      )
+    ]);
+    const available = instanceRows.filter(
+      (row) => row.heartbeatAt && Date.now() - row.heartbeatAt.getTime() <= 45_000
+    );
+    const activeRows = available.filter((row) => row.role === "active");
+    const latest = activeRows[0] ?? instanceRows[0];
+    const queues = queueCounts.reduce<IntegrationHealth["queues"]>(
+      (total, counts) => ({
+        waiting: total.waiting + (counts.waiting ?? 0),
+        active: total.active + (counts.active ?? 0),
+        failed: total.failed + (counts.failed ?? 0)
+      }),
+      { waiting: 0, active: 0, failed: 0 }
+    );
+    const status: IntegrationHealth["status"] = !enabled
+      ? "disabled"
+      : latest?.state === "blocked"
+        ? "blocked"
+        : activeRows.length > 0 && latest?.state === "healthy"
+          ? "healthy"
+          : latest?.state === "retrying"
+            ? "retrying"
+            : "unavailable";
+    return {
+      integrations: [
+        {
+          kind: "telegram",
+          enabled,
+          status,
+          heartbeatAt: latest?.heartbeatAt?.toISOString() ?? null,
+          lastMessageAt: latest?.lastMessageAt?.toISOString() ?? null,
+          activeInstanceId: activeRows[0]?.instanceId ?? null,
+          configuredSourceCount,
+          persistedSourceCount: sourceRows[0]?.count ?? 0,
+          instances: {
+            active: activeRows.length,
+            standby: available.filter((row) => row.role === "standby").length
+          },
+          queues,
+          retryCount: latest?.retryCount ?? 0,
+          nextRetryAt: latest?.nextRetryAt?.toISOString() ?? null,
+          lastError: latest?.lastError ?? null
+        }
+      ]
     };
   }
 
@@ -344,8 +441,20 @@ export class PostgresApiRepository implements ApiRepository {
   }
 
   async onApplicationShutdown() {
+    await Promise.all(this.telemetryQueues.map((queue) => queue.close()));
     await this.connection.close();
   }
+}
+
+function redisConnection() {
+  const url = new URL(process.env.REDIS_URL ?? "redis://localhost:6379");
+  return {
+    host: url.hostname,
+    port: Number(url.port || 6379),
+    ...(url.username ? { username: decodeURIComponent(url.username) } : {}),
+    ...(url.password ? { password: decodeURIComponent(url.password) } : {}),
+    ...(url.protocol === "rediss:" ? { tls: {} } : {})
+  };
 }
 
 function mapOffer(row: OfferRow): PublicOffer {

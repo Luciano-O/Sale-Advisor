@@ -16,8 +16,10 @@ test-results/
 
 # Environment
 .env
+.sale-advisor-reprocess-checkpoint.json
 .env.*
 !.env.example
+!.env.production.example
 
 # Logs
 *.log

@@ -3,6 +3,39 @@ import { describe, expect, it } from "vitest";
 import { buildOfferCandidate } from "./offer-candidate.js";
 
 describe("buildOfferCandidate", () => {
+  it("uses the final resolved URL in parser v3 while preserving source URLs", () => {
+    const candidate = buildOfferCandidate({
+      rawText: "RTX 4060 8GB por R$ 1.899 no Pix https://aoferta.net/abc cupom GPU10",
+      capturedAt: "2026-08-03T12:00:00.000Z",
+      resolvedUrl: "https://www.amazon.com.br/dp/B0ABC12345?tag=affiliate"
+    });
+    expect(candidate).toMatchObject({
+      parserVersion: 3,
+      sourceUrl: "https://www.amazon.com.br/dp/B0ABC12345?tag=affiliate",
+      domain: "amazon.com.br",
+      storeProductId: "B0ABC12345",
+      coupon: "GPU10",
+      condition: "unknown",
+      price: { amountInCents: 189900, paymentMethod: "pix" }
+    });
+    expect(candidate.sourceUrls).toContain("https://aoferta.net/abc");
+  });
+
+  it("does not consolidate a shortener domain when resolution failed", () => {
+    const candidate = buildOfferCandidate({
+      rawText: "RTX 4060 por R$ 1.899 https://meli.la/failure",
+      capturedAt: "2026-08-03T12:00:00.000Z",
+      urlResolutionFailed: true
+    });
+    expect(candidate).toMatchObject({
+      parserVersion: 3,
+      sourceUrl: null,
+      store: null,
+      domain: null,
+      urlResolutionFailed: true
+    });
+  });
+
   it("preserves raw text and includes detected offer signals", () => {
     const candidate = buildOfferCandidate({
       rawText: "RTX 4060 Ti por R$ 1.999,90 no Pix https://LOJA.com/gpu?utm_source=tg&sku=4060ti",

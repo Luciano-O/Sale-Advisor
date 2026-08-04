@@ -33,5 +33,5 @@ jobs:
       - name: Install Playwright
         run: pnpm --filter @sale-advisor/admin exec playwright install --with-deps chromium
 
-      - name: Verify baseline
-        run: pnpm verify:baseline
+      - name: Verify production baseline
+        run: pnpm verify:production
