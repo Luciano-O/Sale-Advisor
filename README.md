@@ -33,3 +33,4 @@ automatizado usado pela CI.
 
 As decisões técnicas e práticas de desenvolvimento estão em `AGENTS.md`.
 O passo a passo de homologação está em `docs/mvp-local-runbook.md`.
+Para executar a baseline portátil em containers, use `docs/production-baseline-runbook.md`.
