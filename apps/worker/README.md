@@ -1,9 +1,14 @@
 # Worker
 
-Worker NestJS standalone com coleta Telegram opcional e cinco filas BullMQ persistidas no Redis:
+O pipeline persistente executa `resolve-url -> parse -> consolidate -> score -> notify`. Somente
+`aoferta.net`, `s.shopee.com.br` e `meli.la` disparam resolução HTTP; lojas diretas não são
+acessadas pelo resolver. Reprocessamento auditável e retomável está documentado em
+`docs/url-reprocessing-runbook.md`.
+
+Worker NestJS standalone com coleta Telegram opcional e seis filas BullMQ persistidas no Redis:
 
 ```text
-Telegram -> telegram-ingest -> raw_messages + outbox -> parse -> consolidate -> score -> notify
+Telegram -> telegram-ingest -> raw_messages + outbox -> resolve-url -> parse -> consolidate -> score -> notify
 ```
 
 O job `telegram-ingest` e o dispatcher da outbox usam IDs determinísticos. Cada job tem cinco

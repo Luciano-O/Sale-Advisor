@@ -13,7 +13,11 @@ export function buildOfferCandidate(input: BuildOfferCandidateInput): OfferCandi
       ...extractHttpUrls(input.rawText)
     ])
   );
-  const sourceUrl = selectPrimaryOfferUrl(sourceUrls);
+  const sourceUrl = input.urlResolutionFailed
+    ? null
+    : input.resolvedUrl !== undefined
+      ? input.resolvedUrl
+      : selectPrimaryOfferUrl(sourceUrls);
   const prices = parsePriceQuotes(input.rawText);
   const effectivePrice = selectEffectivePrice(prices);
   const price = effectivePrice
@@ -49,7 +53,8 @@ export function buildOfferCandidate(input: BuildOfferCandidateInput): OfferCandi
     condition: extractCondition(input.rawText),
     boardBrand: extractBoardBrand(input.rawText),
     coupon: extractCoupon(input.rawText),
-    parserVersion: 2,
+    parserVersion: 3,
+    urlResolutionFailed: input.urlResolutionFailed ?? false,
     ...(input.rawMessageId ? { rawMessageId: input.rawMessageId } : {}),
     ...(input.sourceName ? { sourceName: input.sourceName } : {}),
     ...(storeDomain ? { storeDomain } : {})

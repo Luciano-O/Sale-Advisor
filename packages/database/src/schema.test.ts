@@ -34,7 +34,8 @@ describe("persistent MVP schema", () => {
       "raw_message_parses",
       "raw_messages",
       "sources",
-      "stores"
+      "stores",
+      "url_resolutions"
     ]);
   });
 
