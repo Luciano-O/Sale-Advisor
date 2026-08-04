@@ -51,3 +51,13 @@ WORKDIR /app
 COPY --from=build --chown=node:node /deploy/migrate ./
 USER node
 CMD ["node", "dist/migrate.js"]
+
+FROM node:24.18.0-bookworm-slim AS railway-runtime
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=build --chown=node:node /deploy/api ./api
+COPY --from=build --chown=node:node /deploy/worker ./worker
+COPY --from=build --chown=node:node /deploy/migrate ./migrate
+USER node
+EXPOSE 3000
+CMD ["node", "api/dist/main.js"]
