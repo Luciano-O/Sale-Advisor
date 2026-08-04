@@ -122,7 +122,7 @@ export class WorkerPipeline {
     const raw = this.repository.rawMessages.find((item) => item.id === rawMessageId);
     if (!raw) throw new Error(`Raw message ${rawMessageId} not found`);
     let parse = this.repository.parses.find(
-      (item) => item.rawMessageId === rawMessageId && item.parserVersion === 2
+      (item) => item.rawMessageId === rawMessageId && item.parserVersion === 3
     );
     if (!parse) {
       const candidate = buildOfferCandidate({
@@ -137,7 +137,7 @@ export class WorkerPipeline {
         id: randomUUID(),
         rawMessageId,
         version: 1,
-        parserVersion: 2,
+        parserVersion: 3,
         candidate,
         status: complete ? "completed" : "partial"
       };

@@ -27,6 +27,25 @@ abstract class PipelineProcessor extends WorkerHost {
   }
 }
 
+@Processor("resolve-url")
+export class ResolveUrlProcessor extends PipelineProcessor {
+  constructor(
+    @Inject(PersistentPipelineService) pipeline: PersistentPipelineService,
+    @InjectQueue("parse") private readonly next: Queue<PipelineJobData>
+  ) {
+    super(pipeline);
+  }
+  async process(job: Job<PipelineJobData>) {
+    await this.run(job, async () => {
+      await this.pipeline.resolveUrl(job.data.rawMessageId, job.data.version);
+      await this.next.add("parse", job.data, {
+        ...DEFAULT_JOB_OPTIONS,
+        jobId: deterministicJobId("parse", job.data.rawMessageId, job.data.version)
+      });
+    });
+  }
+}
+
 @Processor("parse")
 export class ParseProcessor extends PipelineProcessor {
   constructor(
@@ -37,7 +56,7 @@ export class ParseProcessor extends PipelineProcessor {
   }
   async process(job: Job<PipelineJobData>) {
     await this.run(job, async () => {
-      if (!(await this.pipeline.parse(job.data.rawMessageId))) return;
+      if (!(await this.pipeline.parse(job.data.rawMessageId, job.data.version))) return;
       await this.next.add("consolidate", job.data, {
         ...DEFAULT_JOB_OPTIONS,
         jobId: deterministicJobId("consolidate", job.data.rawMessageId, job.data.version)

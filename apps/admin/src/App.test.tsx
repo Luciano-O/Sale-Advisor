@@ -15,6 +15,25 @@ describe("admin curation workspace", () => {
         const url = String(input);
         if (url.endsWith("/v1/admin/dashboard"))
           return Response.json({ pending: 2, partial: 1, failed: 0, offersByLabel: { boa: 3 } });
+        if (url.endsWith("/v1/admin/integrations"))
+          return Response.json({
+            integrations: [
+              {
+                kind: "telegram",
+                enabled: true,
+                status: "healthy",
+                heartbeatAt: "2026-08-03T12:00:00.000Z",
+                lastMessageAt: null,
+                configuredSourceCount: 3,
+                persistedSourceCount: 3,
+                instances: { active: 1, standby: 1 },
+                queues: { waiting: 0, active: 1, failed: 0 },
+                retryCount: 0,
+                nextRetryAt: null,
+                lastError: null
+              }
+            ]
+          });
         return Response.json({ items: [] }, { status: url.endsWith("/messages") ? 201 : 200 });
       })
     );
@@ -89,5 +108,15 @@ describe("admin curation workspace", () => {
       await userEvent.click(screen.getByRole("button", { name }));
       expect(screen.getByRole("heading", { name })).toBeInTheDocument();
     }
+  });
+
+  it("renders read-only Telegram health on the dashboard", async () => {
+    sessionStorage.setItem("sale-advisor-admin-key", "secret");
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: /saúde do telegram/i })).toBeInTheDocument();
+    expect(screen.getByText(/1 ativa, 1 standby/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reconectar|pausar|reprocessar/i })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Sources e stores" }));
+    expect(await screen.findByRole("heading", { name: /saúde do telegram/i })).toBeInTheDocument();
   });
 });

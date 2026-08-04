@@ -27,6 +27,34 @@ export const processingStatus = pgEnum("processing_status", [
 ]);
 export const offerStatus = pgEnum("offer_status", ["active", "merged", "split", "expired"]);
 export const deliveryStatus = pgEnum("delivery_status", ["pending", "sent", "failed", "skipped"]);
+export const collectorRole = pgEnum("collector_role", ["active", "standby"]);
+export const collectorState = pgEnum("collector_state", [
+  "starting",
+  "healthy",
+  "retrying",
+  "blocked",
+  "stopped"
+]);
+
+export const collectorInstances = pgTable(
+  "collector_instances",
+  {
+    instanceId: varchar("instance_id", { length: 120 }).primaryKey(),
+    integrationKind: varchar("integration_kind", { length: 40 }).notNull(),
+    role: collectorRole("role").notNull().default("standby"),
+    state: collectorState("state").notNull().default("starting"),
+    heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    retryCount: integer("retry_count").notNull().default(0),
+    nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
+    lastError: jsonb("last_error"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (table) => [
+    index("collector_instances_health_idx").on(table.integrationKind, table.role, table.heartbeatAt)
+  ]
+);
 
 export const sources = pgTable(
   "sources",
@@ -83,6 +111,44 @@ export const rawMessages = pgTable(
   ]
 );
 
+export const urlResolutions = pgTable(
+  "url_resolutions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    rawMessageId: uuid("raw_message_id")
+      .notNull()
+      .references(() => rawMessages.id),
+    originalUrl: text("original_url").notNull(),
+    originalUrlHash: varchar("original_url_hash", { length: 64 }).notNull(),
+    finalUrl: text("final_url"),
+    redirectChain: jsonb("redirect_chain").notNull().default([]),
+    status: varchar("status", { length: 20 }).notNull(),
+    statusHttp: integer("status_http"),
+    resolverVersion: varchar("resolver_version", { length: 40 }).notNull(),
+    pipelineVersion: integer("pipeline_version").notNull().default(1),
+    attempts: integer("attempts").notNull().default(0),
+    error: jsonb("error"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (table) => [
+    uniqueIndex("url_resolutions_message_url_version_unique").on(
+      table.rawMessageId,
+      table.originalUrlHash,
+      table.resolverVersion,
+      table.pipelineVersion
+    ),
+    index("url_resolutions_cache_idx").on(
+      table.originalUrlHash,
+      table.resolverVersion,
+      table.status,
+      table.expiresAt
+    )
+  ]
+);
+
 export const rawMessageParses = pgTable(
   "raw_message_parses",
   {
@@ -92,6 +158,7 @@ export const rawMessageParses = pgTable(
       .references(() => rawMessages.id),
     version: integer("version").notNull(),
     parserVersion: integer("parser_version").notNull(),
+    urlResolutionId: uuid("url_resolution_id").references(() => urlResolutions.id),
     status: processingStatus("status").notNull(),
     candidate: jsonb("candidate").notNull().default({}),
     errors: jsonb("errors").notNull().default([]),
@@ -215,8 +282,11 @@ export const priceSnapshots = pgTable(
     rawMessageId: uuid("raw_message_id")
       .notNull()
       .references(() => rawMessages.id),
+    parseId: uuid("parse_id").references(() => rawMessageParses.id),
     amountInCents: integer("amount_in_cents").notNull(),
     paymentMethod: varchar("payment_method", { length: 30 }).notNull(),
+    active: boolean("active").notNull().default(true),
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
     createdAt: createdAt()
   },
@@ -224,6 +294,7 @@ export const priceSnapshots = pgTable(
     uniqueIndex("price_snapshots_observation_unique").on(
       table.offerId,
       table.rawMessageId,
+      table.parseId,
       table.amountInCents
     ),
     index("price_snapshots_offer_time_idx").on(table.offerId, table.observedAt)

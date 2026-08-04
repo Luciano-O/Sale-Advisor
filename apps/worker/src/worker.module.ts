@@ -8,6 +8,7 @@ import {
   ConsolidateProcessor,
   NotifyProcessor,
   ParseProcessor,
+  ResolveUrlProcessor,
   ScoreProcessor
 } from "./processors.js";
 import { PIPELINE_QUEUES } from "./queue-config.js";
@@ -50,6 +51,7 @@ function redisConnection() {
     TelegramCollectorLifecycle,
     TelegramIngestProcessor,
     OutboxDispatcher,
+    ResolveUrlProcessor,
     ParseProcessor,
     ConsolidateProcessor,
     ScoreProcessor,

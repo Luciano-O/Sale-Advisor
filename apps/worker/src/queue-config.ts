@@ -1,6 +1,6 @@
 import type { JobsOptions } from "bullmq";
 
-export const PIPELINE_QUEUES = ["parse", "consolidate", "score", "notify"] as const;
+export const PIPELINE_QUEUES = ["resolve-url", "parse", "consolidate", "score", "notify"] as const;
 
 export const DEFAULT_JOB_OPTIONS: JobsOptions = {
   attempts: 5,

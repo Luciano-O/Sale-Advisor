@@ -9,6 +9,7 @@
     "process:fixtures": "corepack pnpm build && node dist/index.js",
     "score:fixtures": "corepack pnpm build && node dist/process-scoring-fixtures.js",
     "telegram:login": "tsx src/telegram-login.ts",
+    "reprocess:target-urls": "tsx src/reprocess-target-urls.ts",
     "test": "vitest run --coverage",
     "typecheck": "corepack pnpm --filter @sale-advisor/domain build && tsc -p tsconfig.json --noEmit",
     "dev": "tsx watch src/main.ts",

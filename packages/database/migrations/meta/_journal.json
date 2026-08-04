@@ -15,6 +15,20 @@
       "when": 1784060033454,
       "tag": "0001_plain_tinkerer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785768321507,
+      "tag": "0002_cute_hobgoblin",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785769420434,
+      "tag": "0003_first_living_lightning",
+      "breakpoints": true
     }
   ]
 }
