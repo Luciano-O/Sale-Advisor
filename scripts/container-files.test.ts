@@ -54,18 +54,18 @@ describe("portable production containers", () => {
     expect(api.deploy.preDeployCommand).toContain("migrate/dist/migrate.js");
     expect(api.deploy.startCommand).toContain("api/dist/main.js");
     expect(api.deploy.healthcheckPath).toBe("/v1/health/ready");
-    expect(api.deploy.multiRegionConfig["us-east4-eqdc4a"].numReplicas).toBe(1);
+    expect(api.deploy).not.toHaveProperty("multiRegionConfig");
 
     const worker = JSON.parse(read("infra/railway/worker.railway.json"));
     expect(worker.deploy.preDeployCommand).toContain("migrate/dist/migrate.js");
     expect(worker.deploy.startCommand).toContain("worker/dist/main.js");
     expect(worker.deploy).not.toHaveProperty("healthcheckPath");
-    expect(worker.deploy.multiRegionConfig["us-east4-eqdc4a"].numReplicas).toBe(1);
+    expect(worker.deploy).not.toHaveProperty("multiRegionConfig");
 
     const admin = JSON.parse(read("infra/railway/admin.railway.json"));
     expect(admin.build.dockerfilePath).toBe("/infra/railway/admin.Dockerfile");
     expect(admin.deploy.healthcheckPath).toBe("/");
-    expect(admin.deploy.multiRegionConfig["us-east4-eqdc4a"].numReplicas).toBe(1);
+    expect(admin.deploy).not.toHaveProperty("multiRegionConfig");
     expect(read("infra/railway/admin.Dockerfile")).toContain("ARG VITE_API_URL");
     expect(read("infra/railway/nginx.conf")).toContain("try_files $uri $uri/ /index.html");
     expect(read(".dockerignore")).toContain("!infra/railway/nginx.conf");
