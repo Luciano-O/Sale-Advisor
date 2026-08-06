@@ -54,7 +54,7 @@ export default function OfferDetailsScreen() {
         <Text style={styles.meta}>Condição: {offer.condition ?? "não informada"}</Text>
       </View>
       <Pressable
-        style={commonStyles.button}
+        style={[commonStyles.button, !offer.url && styles.buttonDisabled]}
         disabled={!offer.url}
         onPress={() => {
           if (!offer.url) return;
@@ -62,7 +62,9 @@ export default function OfferDetailsScreen() {
           void Linking.openURL(offer.url);
         }}
       >
-        <Text style={commonStyles.buttonText}>Abrir na loja</Text>
+        <Text style={commonStyles.buttonText}>
+          {offer.url ? "Abrir na loja" : "Link indisponível na demonstração"}
+        </Text>
       </Pressable>
       <Pressable
         style={commonStyles.secondaryButton}
@@ -90,5 +92,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     paddingHorizontal: 10,
     paddingVertical: 7
-  }
+  },
+  buttonDisabled: { opacity: 0.55 }
 });

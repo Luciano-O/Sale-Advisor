@@ -18,11 +18,12 @@ import {
   updateBroadPreferences,
   updatePushTarget
 } from "./api";
-import { loadFeed } from "./cache";
+import { loadFeed, type FeedSource } from "./cache";
 import { createMobileDatabase } from "./database";
 import { flushPendingEvents } from "./events";
 import { filterOffers } from "./filters";
 import { configureNotificationChannel, requestNativePushToken } from "./notifications";
+import { STARTER_OFFERS } from "./starter-offers";
 import {
   DEFAULT_PREFERENCES,
   type AnonymousEventName,
@@ -36,6 +37,7 @@ interface AppState {
   installationId: string | null;
   loading: boolean;
   offline: boolean;
+  feedSource: FeedSource;
   error: string | null;
   lastUpdated: string | null;
   refresh(): Promise<void>;
@@ -59,6 +61,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const installationIdRef = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
+  const [feedSource, setFeedSource] = useState<FeedSource>("network");
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
@@ -85,9 +88,10 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const result = await loadFeed(database.offerCache, fetchOffers);
+    const result = await loadFeed(database.offerCache, fetchOffers, STARTER_OFFERS);
     setAllOffers(result.offers);
     setOffline(result.source === "cache");
+    setFeedSource(result.source);
     setError(result.error);
     setLastUpdated(new Date().toISOString());
     setLoading(false);
@@ -158,6 +162,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       installationId,
       loading,
       offline,
+      feedSource,
       error,
       lastUpdated,
       refresh,
@@ -172,6 +177,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       installationId,
       loading,
       offline,
+      feedSource,
       error,
       lastUpdated,
       refresh,
