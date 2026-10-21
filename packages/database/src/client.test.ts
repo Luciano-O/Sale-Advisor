@@ -24,6 +24,17 @@ describe("createDatabase", () => {
     await database.close();
   });
 
+  it("sizes the connection pool from DATABASE_POOL_MAX", async () => {
+    const database = createDatabase({
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/sale_advisor",
+      REDIS_URL: "redis://localhost:6379",
+      DATABASE_POOL_MAX: "3"
+    });
+
+    expect(database.client.options.max).toBe(3);
+    await database.close();
+  });
+
   it("uses process.env when no environment is provided", async () => {
     process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/sale_advisor";
     process.env.REDIS_URL = "redis://localhost:6379";
