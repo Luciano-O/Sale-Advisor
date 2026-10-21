@@ -41,8 +41,17 @@ const pushTargetSchema = z.object({
   enabled: z.boolean()
 });
 const justificationSchema = z.object({ justification: z.string().trim().min(5).max(1_000) });
+// Mirrors parseAdminOverrides in @sale-advisor/domain, which the worker applies on every parse.
 const correctionSchema = justificationSchema.extend({
-  changes: z.record(z.string(), z.unknown())
+  changes: z
+    .strictObject({
+      productKey: z.string().trim().min(1).max(160).optional(),
+      priceInCents: z.number().int().positive().optional(),
+      coupon: z.string().trim().min(1).max(80).nullable().optional(),
+      storeProductId: z.string().trim().min(1).max(255).nullable().optional(),
+      notAnOffer: z.boolean().optional()
+    })
+    .refine((changes) => Object.keys(changes).length > 0, "at_least_one_change")
 });
 const mergeSchema = justificationSchema.extend({ sourceOfferIds: z.array(z.uuid()).min(1) });
 const splitSchema = justificationSchema.extend({ mentionIds: z.array(z.uuid()).min(1) });

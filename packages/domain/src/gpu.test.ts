@@ -99,6 +99,38 @@ describe("identifyGpuProduct", () => {
     expect(identifyGpuProduct("Computador Gamer Ryzen 5 RX 7600")).toBeNull();
   });
 
+  describe("admin aliases", () => {
+    const aliases = [
+      {
+        alias: "geforce 5060 ghost",
+        product: { id: "nvidia-rtx-5060-8gb", vendor: "NVIDIA", model: "RTX 5060", vramGb: 8 }
+      },
+      {
+        alias: "arc b580",
+        product: { id: "intel-arc-b580-12gb", vendor: "NVIDIA", model: "Arc B580", vramGb: 12 }
+      }
+    ] as const;
+
+    it("identifies a product by alias when the taxonomy finds none", () => {
+      expect(identifyGpuProduct("Placa Gainward GeForce 5060 Ghost por R$ 1.999", aliases)).toEqual(
+        aliases[0].product
+      );
+    });
+
+    it("keeps the taxonomy result when it already identifies a product", () => {
+      expect(identifyGpuProduct("RTX 5070 Ti 16GB arc b580", aliases)?.model).toBe("RTX 5070 Ti");
+    });
+
+    it("matches aliases as whole words, case-insensitively", () => {
+      expect(identifyGpuProduct("Placa ARC B580 12GB", aliases)?.model).toBe("Arc B580");
+      expect(identifyGpuProduct("Placa arc b5800", aliases)).toBeNull();
+    });
+
+    it("still rejects computers found through an alias", () => {
+      expect(identifyGpuProduct("Notebook Gamer com arc b580", aliases)).toBeNull();
+    });
+  });
+
   it("keeps GPU listings that only mention computers as a use case", () => {
     expect(identifyGpuProduct("Placa de vídeo RTX 5060 8GB ideal para PC gamer")?.model).toBe(
       "RTX 5060"

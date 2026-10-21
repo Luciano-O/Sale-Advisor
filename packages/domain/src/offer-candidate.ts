@@ -45,7 +45,7 @@ export function buildOfferCandidate(input: BuildOfferCandidateInput): OfferCandi
     store,
     storeProductId: store?.storeProductId ?? null,
     domain,
-    product: identifyGpuProduct(input.rawText),
+    product: identifyGpuProduct(input.rawText, input.productAliases),
     price,
     prices,
     effectivePrice,

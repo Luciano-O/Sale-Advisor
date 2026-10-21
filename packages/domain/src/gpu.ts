@@ -62,9 +62,19 @@ const COMPUTER_PATTERN =
   /\b(notebook|laptop|pc\s*gamer|computador|desktop|all[\s-]*in[\s-]*one|mini\s*pc|console|playstation|xbox)\b/i;
 const GPU_PART_PATTERN = /placa\s*(de\s*)?(v[ií]deo|gr[aá]fica)|\bgpu\b/i;
 
-export function identifyGpuProduct(text: string): CanonicalGpuProduct | null {
+export interface ProductAlias {
+  alias: string;
+  product: CanonicalGpuProduct;
+}
+
+// Admin aliases only fill gaps: a broad alias must not override a precise taxonomy match.
+export function identifyGpuProduct(
+  text: string,
+  aliases: readonly ProductAlias[] = []
+): CanonicalGpuProduct | null {
   const match = findFirstKnownModel(text);
-  if (!match || isComputerListing(text, match.index)) return null;
+  if (!match) return findAliasProduct(text, aliases);
+  if (isComputerListing(text, match.index)) return null;
 
   const vramGb = extractVram(text, match.index, match.end);
   const id = `${match.vendor.toLowerCase()}-${match.model.toLowerCase().replace(/\s+/g, "-")}`;
@@ -86,6 +96,24 @@ function findFirstKnownModel(text: string) {
     if (vendor) return { model, vendor, index: match.index, end: match.index + match[0].length };
   }
   return null;
+}
+
+function findAliasProduct(
+  text: string,
+  aliases: readonly ProductAlias[]
+): CanonicalGpuProduct | null {
+  const lowerText = text.toLocaleLowerCase("pt-BR");
+  const found = aliases
+    .map(({ alias, product }) => ({ product, index: findWholeWord(lowerText, alias) }))
+    .filter(({ index }) => index >= 0)
+    .sort((left, right) => left.index - right.index)[0];
+  if (!found || isComputerListing(text, found.index)) return null;
+  return found.product;
+}
+
+function findWholeWord(lowerText: string, alias: string): number {
+  const escaped = alias.toLocaleLowerCase("pt-BR").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return lowerText.search(new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "u"));
 }
 
 // A computer term before the GPU model means the offer is the computer, unless the text

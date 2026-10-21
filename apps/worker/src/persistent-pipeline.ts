@@ -4,12 +4,19 @@ import { Injectable } from "@nestjs/common";
 import type { OnApplicationShutdown } from "@nestjs/common";
 import { createDatabase } from "@sale-advisor/database";
 import {
+  applyAdminOverrides,
   buildOfferCandidate,
   extractHttpUrls,
+  parseAdminOverrides,
   scoreOffer,
   selectPrimaryOfferUrl
 } from "@sale-advisor/domain";
-import type { ConsolidatedOffer, OfferCandidate, PriceSnapshot } from "@sale-advisor/domain";
+import type {
+  CanonicalGpuProduct,
+  ConsolidatedOffer,
+  OfferCandidate,
+  PriceSnapshot
+} from "@sale-advisor/domain";
 
 import { asNotificationSendError, type NotificationProvider } from "./notification.js";
 import { SafeUrlResolver, URL_RESOLVER_VERSION, type UrlResolutionRecord } from "./url-resolver.js";
@@ -21,6 +28,18 @@ interface RawRow {
   suppliedUrl: string | null;
   originalPayload: { capturedUrls?: unknown };
   notifyEligible: boolean;
+}
+
+interface ProductAliasRow {
+  alias: string;
+  canonical_key: string;
+  vendor: CanonicalGpuProduct["vendor"];
+  model: string;
+  vram_gb: number | null;
+}
+
+function toProduct(row: Omit<ProductAliasRow, "alias">): CanonicalGpuProduct {
+  return { id: row.canonical_key, vendor: row.vendor, model: row.model, vramGb: row.vram_gb };
 }
 
 interface PersistentOfferRow {
@@ -141,13 +160,31 @@ export class PersistentPipelineService implements OnApplicationShutdown {
         and version = ${pipelineVersion} and parser_version = 3 limit 1
     `;
     if (existing[0]) return existing[0].status === "completed";
-    const rows = await this.connection.client<RawRow[]>`
-      select id, text, captured_at as "capturedAt", supplied_url as "suppliedUrl",
-        original_payload as "originalPayload", notify_eligible as "notifyEligible"
-      from raw_messages where id = ${rawMessageId} limit 1
+    const rows = await this.connection.client<(RawRow & { sourceBlocked: boolean })[]>`
+      select rm.id, rm.text, rm.captured_at as "capturedAt", rm.supplied_url as "suppliedUrl",
+        rm.original_payload as "originalPayload", rm.notify_eligible as "notifyEligible",
+        s.blocked_at is not null as "sourceBlocked"
+      from raw_messages rm join sources s on s.id = rm.source_id where rm.id = ${rawMessageId} limit 1
     `;
     const raw = rows[0];
     if (!raw) throw new Error(`Raw message ${rawMessageId} not found`);
+    // Corrections live on the latest parse and are carried into every new one.
+    const previous = await this.connection.client<{ adminOverrides: unknown }[]>`
+      select admin_overrides as "adminOverrides" from raw_message_parses
+      where raw_message_id = ${rawMessageId} order by version desc, created_at desc limit 1
+    `;
+    const parsedOverrides = parseAdminOverrides(previous[0]?.adminOverrides ?? {});
+    const overrides = parsedOverrides.ok ? parsedOverrides.overrides : {};
+    const aliasRows = await this.connection.client<ProductAliasRow[]>`
+      select a.normalized_alias as alias, p.canonical_key, p.vendor, p.model, p.vram_gb
+      from product_aliases a join products p on p.id = a.product_id where a.active
+    `;
+    const overrideProductRows = overrides.productKey
+      ? await this.connection.client<Omit<ProductAliasRow, "alias">[]>`
+          select canonical_key, vendor, model, vram_gb from products
+          where canonical_key = ${overrides.productKey} limit 1
+        `
+      : [];
     const resolutionRows = await this.connection.client<UrlResolutionRow[]>`
       select id, original_url as "originalUrl", final_url as "finalUrl",
         redirect_chain as "redirectChain", status, status_http as "statusCode",
@@ -157,10 +194,11 @@ export class PersistentPipelineService implements OnApplicationShutdown {
         and pipeline_version = ${pipelineVersion} order by created_at desc limit 1
     `;
     const resolution = resolutionRows[0];
-    const candidate = buildOfferCandidate({
+    const parsedCandidate = buildOfferCandidate({
       rawText: raw.text,
       capturedAt: raw.capturedAt.toISOString(),
       rawMessageId: raw.id,
+      productAliases: aliasRows.map((row) => ({ alias: row.alias, product: toProduct(row) })),
       ...(resolution?.finalUrl ? { resolvedUrl: resolution.finalUrl } : {}),
       ...(resolution?.status === "failed" ? { urlResolutionFailed: true } : {}),
       ...(raw.suppliedUrl ? { url: raw.suppliedUrl } : {}),
@@ -172,21 +210,57 @@ export class PersistentPipelineService implements OnApplicationShutdown {
           }
         : {})
     });
+    const overrideProductRow = overrideProductRows[0];
+    const candidate = applyAdminOverrides(
+      parsedCandidate,
+      overrides,
+      overrideProductRow ? toProduct(overrideProductRow) : null
+    );
+    // Messages from blocked sources stay stored for audit but never become offers.
     const complete = Boolean(
-      !candidate.urlResolutionFailed && candidate.product && candidate.price && candidate.store
+      !raw.sourceBlocked &&
+      !candidate.urlResolutionFailed &&
+      candidate.product &&
+      candidate.price &&
+      candidate.store
     );
     const status = complete ? "completed" : "partial";
+    const errors = complete
+      ? []
+      : [
+          raw.sourceBlocked
+            ? "source_blocked"
+            : candidate.urlResolutionFailed
+              ? "url_resolution_failed"
+              : "incomplete_candidate"
+        ];
     await this.connection.client.begin(async (sql) => {
       await sql`
         insert into raw_message_parses (
-          raw_message_id, version, parser_version, url_resolution_id, status, candidate, errors
+          raw_message_id, version, parser_version, url_resolution_id, status, candidate, errors,
+          admin_overrides
         ) values (
           ${rawMessageId}, ${pipelineVersion}, 3, ${resolution?.id ?? null}, ${status}::processing_status,
-          ${sql.json(JSON.parse(JSON.stringify(candidate)))},
-          ${sql.json(complete ? [] : [candidate.urlResolutionFailed ? "url_resolution_failed" : "incomplete_candidate"])}
+          ${sql.json(JSON.parse(JSON.stringify(candidate)))}, ${sql.json(errors)},
+          ${sql.json(JSON.parse(JSON.stringify(overrides)))}
         )
       `;
       await sql`update raw_messages set status = ${status}::processing_status, updated_at = now() where id = ${rawMessageId}`;
+      if (!complete) {
+        // A message that no longer yields an offer (correction, blocked source) stops counting.
+        const retired = await sql<{ offerId: string }[]>`
+          update offer_mentions set active = false
+          where raw_message_id = ${rawMessageId} and active returning offer_id as "offerId"
+        `;
+        await sql`
+          update price_snapshots set active = false, superseded_at = now()
+          where raw_message_id = ${rawMessageId} and active
+        `;
+        await refreshOfferMentions(
+          sql,
+          retired.map(({ offerId }) => offerId)
+        );
+      }
     });
     return complete;
   }
@@ -308,25 +382,7 @@ export class PersistentPipelineService implements OnApplicationShutdown {
           where id = ${offerId}
         `;
       }
-      for (const affectedOfferId of new Set([
-        ...priorOffers.map((item) => item.offerId),
-        offerId
-      ])) {
-        await sql`
-          update offers set
-            mention_count = (select count(*)::int from offer_mentions where offer_id = ${affectedOfferId} and active),
-            status = case
-              when exists (select 1 from offer_mentions where offer_id = ${affectedOfferId} and active) then 'active'::offer_status
-              else 'expired'::offer_status
-            end,
-            expires_at = case
-              when exists (select 1 from offer_mentions where offer_id = ${affectedOfferId} and active) then null
-              else coalesce(expires_at, now())
-            end,
-            updated_at = now()
-          where id = ${affectedOfferId}
-        `;
-      }
+      await refreshOfferMentions(sql, [...priorOffers.map((item) => item.offerId), offerId]);
       return offerId;
     });
   }
@@ -491,6 +547,29 @@ function mapUrlResolution(row: UrlResolutionRow): UrlResolutionRecord {
 
 function errorName(error: unknown) {
   return error instanceof Error ? error.name : "UnknownError";
+}
+
+// Only the tagged-template call is needed, so both pools and transactions fit.
+type Transaction = (strings: TemplateStringsArray, ...values: string[]) => PromiseLike<unknown>;
+
+/** Recounts active mentions; an offer left without active mentions expires. */
+async function refreshOfferMentions(sql: Transaction, offerIds: string[]): Promise<void> {
+  for (const offerId of new Set(offerIds)) {
+    await sql`
+      update offers set
+        mention_count = (select count(*)::int from offer_mentions where offer_id = ${offerId} and active),
+        status = case
+          when exists (select 1 from offer_mentions where offer_id = ${offerId} and active) then 'active'::offer_status
+          else 'expired'::offer_status
+        end,
+        expires_at = case
+          when exists (select 1 from offer_mentions where offer_id = ${offerId} and active) then null
+          else coalesce(expires_at, now())
+        end,
+        updated_at = now()
+      where id = ${offerId}
+    `;
+  }
 }
 
 function mapConsolidatedOffer(row: PersistentOfferRow): ConsolidatedOffer {

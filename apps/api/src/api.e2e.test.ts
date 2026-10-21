@@ -243,6 +243,33 @@ describe("MVP API", () => {
     );
   });
 
+  it("accepts only the supported message corrections", async () => {
+    const headers = { "x-admin-key": ADMIN_KEY };
+    const path = "/v1/admin/messages/00000000-0000-4000-8000-000000000001/correction";
+    const justification = "Correção baseada na revisão da mensagem original";
+    for (const changes of [
+      { model: "RTX 5060" },
+      { priceInCents: -10 },
+      { priceInCents: 19.9 },
+      { productKey: "" },
+      {}
+    ]) {
+      await request(context.app.getHttpServer())
+        .put(path)
+        .set(headers)
+        .send({ justification, changes })
+        .expect(400);
+    }
+    await request(context.app.getHttpServer())
+      .put(path)
+      .set(headers)
+      .send({
+        justification,
+        changes: { productKey: "nvidia-rtx-5060-8gb", priceInCents: 199_900, notAnOffer: false }
+      })
+      .expect(200);
+  });
+
   it("exposes curation lists and validates every audit-sensitive action", async () => {
     const headers = { "x-admin-key": ADMIN_KEY };
     for (const resource of ["messages", "offers", "products", "sources", "audit"]) {
