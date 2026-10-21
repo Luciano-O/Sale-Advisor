@@ -12,6 +12,13 @@ const TRACKING_PARAMS = new Set([
   "tag",
   "affid",
   "affiliate",
+  // Awin affiliate links (KaBuM) and Magazine Luiza partner links.
+  "awc",
+  "aw_affid",
+  "sv1",
+  "sv_campaign_id",
+  "promoter_id",
+  "partner_id",
   "campaign",
   "utm_campaign",
   "utm_content",

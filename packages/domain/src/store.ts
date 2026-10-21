@@ -33,6 +33,21 @@ const STORE_ADAPTERS: StoreAdapterDefinition[] = [
     extractStoreProductId: extractShopeeItem
   },
   {
+    name: "kabum",
+    matchesDomain: (domain) => domain === "kabum.com.br",
+    extractStoreProductId: (url) => extractProductPathId(url, "path:kabum-product")
+  },
+  {
+    name: "terabyte",
+    matchesDomain: (domain) => domain === "terabyteshop.com.br",
+    extractStoreProductId: (url) => extractProductPathId(url, "path:terabyte-product")
+  },
+  {
+    name: "magazine-luiza",
+    matchesDomain: (domain) => domain === "magazineluiza.com.br",
+    extractStoreProductId: extractMagazineLuizaSku
+  },
+  {
     name: "loja-a",
     matchesDomain: (domain) => domain === "loja-a.example.br",
     extractStoreProductId: (url) => extractQueryParam(url, "sku")
@@ -82,6 +97,20 @@ function extractShopeeItem(url: URL): StoreProductIdMatch | null {
   return match?.[1] && match[2]
     ? { value: `${match[1]}:${match[2]}`, source: "path:shopee-item" }
     : null;
+}
+
+function extractProductPathId(
+  url: URL,
+  source: "path:kabum-product" | "path:terabyte-product"
+): StoreProductIdMatch | null {
+  const value = url.pathname.match(/^\/produto\/(\d+)(?:\/|$)/i)?.[1];
+  return value ? { value, source } : null;
+}
+
+// Product pages use /p/<sku>/; affiliate links use /divulgador/oferta/<sku>/.
+function extractMagazineLuizaSku(url: URL): StoreProductIdMatch | null {
+  const value = url.pathname.match(/\/(?:p|divulgador\/oferta)\/([a-z0-9]{8,12})(?:\/|$)/i)?.[1];
+  return value ? { value: value.toLowerCase(), source: "path:magazine-luiza-sku" } : null;
 }
 
 export function normalizeStoreDomain(domain: string): string {
