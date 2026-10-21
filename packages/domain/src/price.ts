@@ -9,6 +9,10 @@ const PRICE_PATTERN = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+|\d{3,6})(?:,(\d{2}))?/gi;
 const PIX_PATTERN = /\b(?:pix|avista|a vista|à vista)\b/i;
 const CASH_PATTERN = /\b(?:boleto|cash|dinheiro)\b/i;
 const INSTALLMENT_PATTERN = /\b(?:\d{1,2}x|parcelad[oa]|parcela|sem juros)\b/i;
+// Coupon amounts: the discount itself ("R$ 100 OFF") and its conditions ("acima de R$ 999").
+const DISCOUNT_SUFFIX_PATTERN = /^\s*(?:off\b|de\s+desconto\b)/i;
+const COUPON_CONDITION_PREFIX_PATTERN =
+  /(?:a\s+partir\s+de|acima\s+de|limite\s+de|m[ií]nimo\s+de)\s*$/i;
 
 export function parsePrice(text: string): ParsedPrice | null {
   const best = selectEffectivePrice(parsePriceQuotes(text));
@@ -98,7 +102,7 @@ function collectPriceCandidates(text: string): PriceCandidate[] {
 }
 
 function looksLikePrice(rawText: string, fullText: string, index: number): boolean {
-  if (isLikelyGpuModelNumber(fullText, index)) {
+  if (isLikelyGpuModelNumber(fullText, index) || isCouponAmount(rawText, fullText, index)) {
     return false;
   }
 
@@ -116,6 +120,12 @@ function looksLikePrice(rawText: string, fullText: string, index: number): boole
 function isLikelyGpuModelNumber(fullText: string, index: number): boolean {
   const before = fullText.slice(Math.max(0, index - 8), index);
   return /\b(?:rtx|rx)\s*$/i.test(before);
+}
+
+function isCouponAmount(rawText: string, fullText: string, index: number): boolean {
+  const after = fullText.slice(index + rawText.length, index + rawText.length + 16);
+  const before = fullText.slice(Math.max(0, index - 24), index);
+  return DISCOUNT_SUFFIX_PATTERN.test(after) || COUPON_CONDITION_PREFIX_PATTERN.test(before);
 }
 
 function parseBrlAmountToCents(

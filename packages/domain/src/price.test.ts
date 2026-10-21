@@ -31,4 +31,24 @@ describe("parsePrice", () => {
   it("returns null when no price is present", () => {
     expect(parsePrice("Oferta de placa de video hoje")).toBeNull();
   });
+
+  it("does not read coupon discounts or their minimum purchase as a price", () => {
+    expect(parsePrice("🔥 Cupom Shopee\n\n🏷️ R$ 100 OFF a partir de R$ 999")).toBeNull();
+    expect(
+      parsePrice("🎟️ R$ 20 OFF acima de R$ 189\n🎟️ R$ 30 OFF acima de R$ 279\n🎟️ 30% OFF")
+    ).toBeNull();
+    expect(parsePrice("🏷️ 10% OFF Limite de R$ 200 OFF a partir de R$ 800: BORA")).toBeNull();
+    expect(parsePrice("Ganhe R$ 50 de desconto em compras com valor mínimo de R$ 500")).toBeNull();
+  });
+
+  it("keeps the product price when the message also lists coupons", () => {
+    expect(
+      parsePrice(
+        "Placa de Vídeo RTX 5060 8GB\n\n💵 R$ 2372\n\n🏷️ Resgate os cupons:\nR$ 100 OFF: https://s.shopee.com.br/5\nR$ 50 OFF acima de R$ 1.500"
+      )?.amountInCents
+    ).toBe(237200);
+    expect(parsePrice("RX 9070 XT 16GB\n💵 R$ 5219 com cupom: PROMO10")?.amountInCents).toBe(
+      521900
+    );
+  });
 });
