@@ -6,6 +6,10 @@ O app cria uma instalação anônima, mantém feed e preferências offline, filt
 aparelho, persiste eventos para retry e transforma push data-only (`offerId`) em notificação
 local somente após aplicar os filtros locais.
 
+Quando a API e o cache ainda não estão disponíveis, a primeira execução exibe ofertas
+demonstrativas claramente identificadas. Elas permitem validar navegação, detalhes, filtros e
+persistência local no APK; uma resposta da API substitui esse conteúdo automaticamente.
+
 ```powershell
 $env:EXPO_PUBLIC_API_URL="http://10.0.2.2:3000"
 pnpm --filter @sale-advisor/mobile dev

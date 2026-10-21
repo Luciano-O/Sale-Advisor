@@ -25,7 +25,7 @@
     "typecheck": "corepack pnpm -r --if-present typecheck",
     "verify": "corepack pnpm format:check && corepack pnpm lint && corepack pnpm test && corepack pnpm typecheck && corepack pnpm build",
     "verify:baseline": "corepack pnpm preflight && corepack pnpm verify && corepack pnpm test:e2e",
-    "verify:production": "corepack pnpm verify:baseline && corepack pnpm container:smoke"
+    "verify:production": "corepack pnpm verify:baseline && corepack pnpm container:build && corepack pnpm container:smoke"
   },
   "engines": {
     "node": "24.x",

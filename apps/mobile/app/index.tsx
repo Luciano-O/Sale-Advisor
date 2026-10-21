@@ -30,7 +30,7 @@ function OfferCard({ offer }: { offer: MobileOffer }) {
 }
 
 export default function FeedScreen() {
-  const { offers, loading, offline, error, lastUpdated, refresh } = useApp();
+  const { offers, loading, offline, feedSource, error, lastUpdated, refresh } = useApp();
   return (
     <View style={commonStyles.screen}>
       <FlatList
@@ -53,7 +53,14 @@ export default function FeedScreen() {
             <Text style={commonStyles.subtitle}>
               O histórico decide a qualidade; seus filtros ficam neste aparelho.
             </Text>
-            {offline ? (
+            {feedSource === "starter" ? (
+              <View style={styles.demo}>
+                <Text style={styles.demoText}>Modo demonstração</Text>
+                <Text style={styles.offlineDetail}>
+                  Preços ilustrativos. Conecte a API para receber ofertas reais.
+                </Text>
+              </View>
+            ) : offline ? (
               <View style={styles.offline}>
                 <Text style={styles.offlineText}>Modo offline · mostrando o último cache</Text>
                 {error ? <Text style={styles.offlineDetail}>{error}</Text> : null}
@@ -100,6 +107,8 @@ const styles = StyleSheet.create({
   offline: { backgroundColor: "#352c16", borderRadius: 12, gap: 3, padding: 12 },
   offlineText: { color: colors.warning, fontWeight: "800" },
   offlineDetail: { color: colors.muted, fontSize: 12 },
+  demo: { backgroundColor: "#18314f", borderRadius: 12, gap: 3, padding: 12 },
+  demoText: { color: "#8dc4ff", fontWeight: "800" },
   updated: { color: colors.muted, fontSize: 12 },
   label: {
     backgroundColor: colors.accentDark,

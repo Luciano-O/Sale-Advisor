@@ -38,9 +38,13 @@ export interface TelegramCollectorOptions {
   queue: TelegramIngestQueue;
   chats: string[];
   initialHistoryLimit: number;
+  recoveryLimit?: number;
   cursors: TelegramCursorStore;
   logger?: TelegramCollectorLogger;
 }
+
+// Without an explicit limit, teleproto returns a single message for minId-only requests.
+const DEFAULT_RECOVERY_LIMIT = 5_000;
 
 export class TelegramCollector {
   private readonly allowedPeerIds = new Map<string, ResolvedTelegramChat>();
@@ -70,13 +74,18 @@ export class TelegramCollector {
       }
     );
 
+    const recoveryLimit = this.options.recoveryLimit ?? DEFAULT_RECOVERY_LIMIT;
     for (const chat of chats) {
       const cursor = cursors.get(chat.peerId) ?? null;
       if (cursor === null && this.options.initialHistoryLimit === 0) continue;
       const history = await this.options.client.listMessages(
         chat,
-        cursor === null ? { limit: this.options.initialHistoryLimit } : { minId: cursor }
+        cursor === null
+          ? { limit: this.options.initialHistoryLimit }
+          : { minId: cursor, limit: recoveryLimit }
       );
+      if (cursor !== null && history.length >= recoveryLimit)
+        this.options.logger?.error(`Telegram recovery reached its limit limit=${recoveryLimit}`);
       history.sort((left, right) => compareMessageIds(left.id, right.id));
       for (const message of history) await this.enqueue(message, chat, cursor !== null);
     }

@@ -1,5 +1,8 @@
 # Docs
 
+Deploy Railway: `railway-deployment-runbook.md` descreve provisionamento, smoke, Telegram e rollback
+do ambiente de staging.
+
 Documentação técnica do Sale Advisor.
 
 Use `docs/adr` para decisões arquiteturais relevantes.

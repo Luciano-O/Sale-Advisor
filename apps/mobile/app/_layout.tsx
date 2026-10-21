@@ -31,7 +31,7 @@ function Application() {
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="offer/[id]" options={{ title: "Detalhes da oferta" }} />
-        <Stack.Screen name="preferences" options={{ title: "PreferÃªncias locais" }} />
+        <Stack.Screen name="preferences" options={{ title: "Preferências locais" }} />
         <Stack.Screen name="debug-notification" options={{ headerShown: false }} />
       </Stack>
     </AppProvider>
