@@ -45,7 +45,16 @@ class FakeTelegramClient implements TelegramClientPort {
   async listMessages(chat: ResolvedTelegramChat, input: { minId?: string; limit?: number }) {
     this.operations.push(`history:${chat.peerId}`);
     this.historyRequests.push({ peerId: chat.peerId, ...input });
-    return this.histories[chat.peerId] ?? [];
+    const newestFirst = [...(this.histories[chat.peerId] ?? [])].sort(
+      (left, right) => Number(right.id) - Number(left.id)
+    );
+    const afterCursor =
+      input.minId === undefined
+        ? newestFirst
+        : newestFirst.filter((message) => Number(message.id) > Number(input.minId));
+    // teleproto getMessages returns a single message when only minId is provided.
+    const limit = input.limit ?? (input.minId === undefined ? undefined : 1);
+    return limit === undefined ? afterCursor : afterCursor.slice(0, limit);
   }
 
   async emit(message: TelegramMessageLike) {
@@ -119,12 +128,55 @@ describe("TelegramCollector", () => {
     await client.emit(message("-9999", 20));
     await client.emit(message("-1001", 13));
 
-    expect(client.historyRequests).toEqual([{ peerId: "-1001", minId: "10" }]);
+    expect(client.historyRequests).toEqual([{ peerId: "-1001", minId: "10", limit: 5_000 }]);
     expect(queue.jobs.map(({ messageId, notifyEligible }) => [messageId, notifyEligible])).toEqual([
       ["11", true],
       ["12", true],
       ["13", true]
     ]);
+  });
+
+  it("recovers every message published while the collector was offline", async () => {
+    const offline = [15, 11, 14, 12, 13, 9, 10].map((id) => message("-1001", id));
+    const client = new FakeTelegramClient(
+      { "@gpu": { reference: "@gpu", peerId: "-1001", title: "GPU" } },
+      { "-1001": offline }
+    );
+    const queue = new FakeTelegramQueue();
+    const collector = new TelegramCollector({
+      client,
+      queue,
+      chats: ["@gpu"],
+      initialHistoryLimit: 100,
+      cursors: { get: async () => "10" }
+    });
+
+    await collector.start();
+
+    expect(queue.jobs.map(({ messageId }) => messageId)).toEqual(["11", "12", "13", "14", "15"]);
+  });
+
+  it("reports a truncated recovery without exposing chat or message identifiers", async () => {
+    const client = new FakeTelegramClient(
+      { "@gpu": { reference: "@gpu", peerId: "-1001" } },
+      { "-1001": [11, 12, 13].map((id) => message("-1001", id)) }
+    );
+    const queue = new FakeTelegramQueue();
+    const errors: string[] = [];
+    const collector = new TelegramCollector({
+      client,
+      queue,
+      chats: ["@gpu"],
+      initialHistoryLimit: 100,
+      recoveryLimit: 2,
+      cursors: { get: async () => "10" },
+      logger: { error: (value) => errors.push(value) }
+    });
+
+    await collector.start();
+
+    expect(queue.jobs.map(({ messageId }) => messageId)).toEqual(["12", "13"]);
+    expect(errors).toEqual(["Telegram recovery reached its limit limit=2"]);
   });
 
   it("continues a history batch when one message cannot be queued", async () => {
