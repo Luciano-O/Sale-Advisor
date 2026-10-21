@@ -1,45 +1,112 @@
 import type { CanonicalGpuProduct, GpuVendor } from "./types.js";
 
-interface GpuDefinition {
-  id: string;
-  vendor: GpuVendor;
-  model: string;
-  pattern: RegExp;
-}
-
-const GPU_TAXONOMY: GpuDefinition[] = [
-  gpu("nvidia-rtx-4070-super", "NVIDIA", "RTX 4070 Super", /\brtx\s*4070\s*super\b/i),
-  gpu("nvidia-rtx-4070", "NVIDIA", "RTX 4070", /\brtx\s*4070\b(?!\s*super)/i),
-  gpu("nvidia-rtx-4060-ti", "NVIDIA", "RTX 4060 Ti", /\brtx\s*4060\s*ti\b/i),
-  gpu("nvidia-rtx-4060", "NVIDIA", "RTX 4060", /\brtx\s*4060\b(?!\s*ti)/i),
-  gpu("nvidia-rtx-3060", "NVIDIA", "RTX 3060", /\brtx\s*3060\b/i),
-  gpu("amd-rx-7800-xt", "AMD", "RX 7800 XT", /\brx\s*7800\s*xt\b/i),
-  gpu("amd-rx-7700-xt", "AMD", "RX 7700 XT", /\brx\s*7700\s*xt\b/i),
-  gpu("amd-rx-7600", "AMD", "RX 7600", /\brx\s*7600\b/i),
-  gpu("amd-rx-6600", "AMD", "RX 6600", /\brx\s*6600\b/i)
+// Controlled taxonomy: GPUs sold new in Brazil in 2026. Variants are separate models.
+const NVIDIA_MODELS = [
+  "RTX 3050",
+  "RTX 3060",
+  "RTX 3060 Ti",
+  "RTX 3070",
+  "RTX 3070 Ti",
+  "RTX 3080",
+  "RTX 4060",
+  "RTX 4060 Ti",
+  "RTX 4070",
+  "RTX 4070 Super",
+  "RTX 4070 Ti",
+  "RTX 4070 Ti Super",
+  "RTX 4080",
+  "RTX 4080 Super",
+  "RTX 4090",
+  "RTX 5050",
+  "RTX 5060",
+  "RTX 5060 Ti",
+  "RTX 5070",
+  "RTX 5070 Ti",
+  "RTX 5080",
+  "RTX 5090"
+];
+const AMD_MODELS = [
+  "RX 6500 XT",
+  "RX 6600",
+  "RX 6600 XT",
+  "RX 6650 XT",
+  "RX 6700 XT",
+  "RX 6750 XT",
+  "RX 6800",
+  "RX 6800 XT",
+  "RX 7600",
+  "RX 7600 XT",
+  "RX 7700 XT",
+  "RX 7800 XT",
+  "RX 7900 GRE",
+  "RX 7900 XT",
+  "RX 7900 XTX",
+  "RX 9060 XT",
+  "RX 9070",
+  "RX 9070 XT"
 ];
 
+const TAXONOMY = new Map<string, GpuVendor>([
+  ...NVIDIA_MODELS.map((model) => [model, "NVIDIA"] as const),
+  ...AMD_MODELS.map((model) => [model, "AMD"] as const)
+]);
+
+// Longer suffixes first so "Ti Super" is not read as "Ti" and "XTX" not as "XT".
+const MODEL_PATTERN =
+  /\b(?:(rtx)\s*-?\s*(\d{4})\s*(ti\s*super|ti|super)?|(rx)\s*-?\s*(\d{4})\s*(xtx|xt|gre)?)\b/gi;
+const VRAM_PATTERN = /\b(4|6|8|10|12|16|20|24|32)\s*gb\b/gi;
+const COMPUTER_PATTERN =
+  /\b(notebook|laptop|pc\s*gamer|computador|desktop|all[\s-]*in[\s-]*one|mini\s*pc|console|playstation|xbox)\b/i;
+const GPU_PART_PATTERN = /placa\s*(de\s*)?(v[ií]deo|gr[aá]fica)|\bgpu\b/i;
+
 export function identifyGpuProduct(text: string): CanonicalGpuProduct | null {
-  const match = GPU_TAXONOMY.find((product) => product.pattern.test(text));
+  const match = findFirstKnownModel(text);
+  if (!match || isComputerListing(text, match.index)) return null;
 
-  if (!match) {
-    return null;
-  }
-
-  const vramGb = extractVram(text);
+  const vramGb = extractVram(text, match.index, match.end);
+  const id = `${match.vendor.toLowerCase()}-${match.model.toLowerCase().replace(/\s+/g, "-")}`;
   return {
-    id: `${match.id}-${vramGb === null ? "unknown-vram" : `${vramGb}gb`}`,
+    id: `${id}-${vramGb === null ? "unknown-vram" : `${vramGb}gb`}`,
     vendor: match.vendor,
     model: match.model,
     vramGb
   };
 }
 
-function extractVram(text: string): number | null {
-  const match = text.match(/\b(4|6|8|10|12|16|20|24)\s*gb\b/i);
-  return match?.[1] ? Number.parseInt(match[1], 10) : null;
+function findFirstKnownModel(text: string) {
+  for (const match of text.matchAll(MODEL_PATTERN)) {
+    const [, rtx, rtxNumber, rtxSuffix, , rxNumber, rxSuffix] = match;
+    const model = rtx
+      ? `RTX ${rtxNumber}${rtxSuffix ? ` ${titleCase(rtxSuffix)}` : ""}`
+      : `RX ${rxNumber}${rxSuffix ? ` ${rxSuffix.toUpperCase()}` : ""}`;
+    const vendor = TAXONOMY.get(model);
+    if (vendor) return { model, vendor, index: match.index, end: match.index + match[0].length };
+  }
+  return null;
 }
 
-function gpu(id: string, vendor: GpuVendor, model: string, pattern: RegExp): GpuDefinition {
-  return { id, vendor, model, pattern };
+// A computer term before the GPU model means the offer is the computer, unless the text
+// already introduced a GPU part ("Placa de vídeo para PC Gamer RTX 5060").
+function isComputerListing(text: string, modelIndex: number): boolean {
+  const beforeModel = text.slice(0, modelIndex);
+  const computer = COMPUTER_PATTERN.exec(beforeModel);
+  if (!computer) return false;
+  return !GPU_PART_PATTERN.test(beforeModel.slice(0, computer.index));
+}
+
+function extractVram(text: string, modelStart: number, modelEnd: number): number | null {
+  const amounts = [...text.matchAll(VRAM_PATTERN)].map((match) => ({
+    value: Number.parseInt(match[1]!, 10),
+    index: match.index
+  }));
+  const after = amounts.find(({ index }) => index >= modelEnd);
+  const before = amounts.filter(({ index }) => index < modelStart).at(-1);
+  return (after ?? before)?.value ?? null;
+}
+
+function titleCase(value: string): string {
+  return value
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
