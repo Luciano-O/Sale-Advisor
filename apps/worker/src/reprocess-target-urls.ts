@@ -1,19 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { createDatabase } from "@sale-advisor/database";
 
-interface Checkpoint {
-  createdAt: string;
-  id: string;
-  processed: number;
-}
-
-interface TargetRow {
-  id: string;
-  createdAt: Date;
-}
+import { advanceCheckpoint, readCheckpoint } from "./reprocess-checkpoint.js";
+import type { TargetRow } from "./reprocess-checkpoint.js";
 
 const execute = process.argv.includes("--execute");
 const checkpointPath = resolve(
@@ -60,16 +52,17 @@ try {
     while (true) {
       const rows = checkpoint
         ? await connection.client<TargetRow[]>`
-            select id, created_at as "createdAt" from raw_messages
+            select id, created_at::text as "createdAt" from raw_messages
             where lower(coalesce(supplied_url, '') || ' ' || text) like any (array[
               '%aoferta.net%', '%s.shopee.com.br%', '%meli.la%', '%amazon.com.br%',
               '%mercadolivre.com.br%', '%shopee.com.br%'
             ])
-              and (created_at, id) > (${checkpoint.createdAt}::timestamptz, ${checkpoint.id}::uuid)
+              -- Bound as text: postgres.js would serialize a timestamptz parameter with millisecond precision.
+              and (created_at, id) > (${checkpoint.createdAt}::text::timestamptz, ${checkpoint.id}::uuid)
             order by created_at, id limit 100
           `
         : await connection.client<TargetRow[]>`
-            select id, created_at as "createdAt" from raw_messages
+            select id, created_at::text as "createdAt" from raw_messages
             where lower(coalesce(supplied_url, '') || ' ' || text) like any (array[
               '%aoferta.net%', '%s.shopee.com.br%', '%meli.la%', '%amazon.com.br%',
               '%mercadolivre.com.br%', '%shopee.com.br%'
@@ -93,26 +86,11 @@ try {
           await sql`update raw_messages set status = 'pending', updated_at = now() where id = ${row.id}`;
         }
       });
-      const last = rows.at(-1)!;
-      checkpoint = {
-        createdAt: last.createdAt.toISOString(),
-        id: last.id,
-        processed: (checkpoint?.processed ?? 0) + rows.length
-      };
+      checkpoint = advanceCheckpoint(checkpoint, rows);
       await writeFile(checkpointPath, `${JSON.stringify(checkpoint, null, 2)}\n`, "utf8");
       console.log(JSON.stringify({ batch: rows.length, processed: checkpoint.processed }));
     }
   }
 } finally {
   await connection.close();
-}
-
-async function readCheckpoint(path: string): Promise<Checkpoint | null> {
-  try {
-    const parsed = JSON.parse(await readFile(path, "utf8")) as Checkpoint;
-    return parsed.createdAt && parsed.id && Number.isSafeInteger(parsed.processed) ? parsed : null;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw error;
-  }
 }
