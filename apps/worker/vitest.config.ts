@@ -22,6 +22,9 @@ export default defineConfig({
         "src/telegram-message.ts",
         "src/telegram-queue.ts",
         "src/telegram-collector.ts",
+        "src/parser-report.ts",
+        "src/fixture-export.ts",
+        "src/reprocess-checkpoint.ts",
         "src/process-fixtures.ts",
         "src/process-scoring-fixtures.ts"
       ],
