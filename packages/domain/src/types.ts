@@ -76,6 +76,8 @@ export interface BuildOfferCandidateInput {
   storeDomain?: string;
   resolvedUrl?: string | null;
   urlResolutionFailed?: boolean;
+  /** Admin aliases, used when the taxonomy identifies no product. */
+  productAliases?: ReadonlyArray<{ alias: string; product: CanonicalGpuProduct }>;
 }
 
 export interface OfferCandidate {

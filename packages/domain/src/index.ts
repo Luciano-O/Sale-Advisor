@@ -1,5 +1,8 @@
+export { applyAdminOverrides, parseAdminOverrides } from "./admin-overrides.js";
+export type { AdminOverrides, ParseAdminOverridesResult } from "./admin-overrides.js";
 export { deduplicateOfferCandidates } from "./deduplication.js";
 export { identifyGpuProduct } from "./gpu.js";
+export type { ProductAlias } from "./gpu.js";
 export { buildOfferCandidate } from "./offer-candidate.js";
 export { calculatePriceBucket } from "./price-bucket.js";
 export { parsePrice, parsePriceQuotes, selectEffectivePrice } from "./price.js";
