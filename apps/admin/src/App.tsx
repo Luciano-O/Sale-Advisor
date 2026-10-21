@@ -409,7 +409,7 @@ function CurationActions({
   }
   const valueLabel =
     page === "Mensagens"
-      ? "Overrides em JSON"
+      ? "Correção em JSON (productKey, priceInCents, coupon, storeProductId, notAnOffer)"
       : page === "Ofertas"
         ? "IDs separados por vírgula"
         : page === "Produtos e aliases"

@@ -358,26 +358,24 @@ export class PostgresApiRepository implements ApiRepository {
       let entityType = action.split(".")[0] ?? "unknown";
       let found = true;
       if (action === "message.reprocess" && id) {
-        const rows = await sql<
-          { id: string }[]
-        >`update raw_messages set status = 'pending', updated_at = now() where id = ${id} returning id`;
-        found = rows.length > 0;
-        if (found) {
-          const versions = await sql<{ version: number }[]>`
-            select coalesce(max(version), 0)::int + 1 as version from outbox_events where topic = 'raw-message.created' and aggregate_id = ${id}
-          `;
-          await sql`
-            insert into outbox_events (topic, aggregate_id, version, correlation_id, payload)
-            values ('raw-message.created', ${id}, ${versions[0]?.version ?? 1}, ${randomUUID()}, ${sql.json({ rawMessageId: id })})
-          `;
-        }
+        found = (await enqueueReprocess(sql, [id])) > 0;
       } else if (action === "message.correct" && id) {
         const changes = JSON.parse(JSON.stringify(payload.changes ?? {}));
-        const rows = await sql<{ id: string }[]>`
-          update raw_message_parses set admin_overrides = admin_overrides || ${sql.json(changes)}::jsonb
-          where id = (select id from raw_message_parses where raw_message_id = ${id} order by version desc limit 1) returning id
-        `;
+        const productKey: string | null =
+          typeof changes.productKey === "string" ? changes.productKey : null;
+        const products = productKey
+          ? await sql`select 1 from products where canonical_key = ${productKey} limit 1`
+          : [{}];
+        const rows =
+          products.length > 0
+            ? await sql<{ id: string }[]>`
+                update raw_message_parses set admin_overrides = admin_overrides || ${sql.json(changes)}::jsonb
+                where id = (select id from raw_message_parses where raw_message_id = ${id} order by version desc limit 1) returning id
+              `
+            : [];
         found = rows.length > 0;
+        // The worker applies corrections while parsing, so the message is parsed again.
+        if (found) await enqueueReprocess(sql, [id]);
       } else if ((action === "source.block" || action === "store.block") && id) {
         const blocked = payload.blocked === true;
         const rows =
@@ -389,6 +387,27 @@ export class PostgresApiRepository implements ApiRepository {
                 { id: string }[]
               >`update stores set blocked_at = case when ${blocked} then now() else null end, updated_at = now() where id = ${id} returning id`;
         found = rows.length > 0;
+        if (found && action === "source.block") {
+          // Blocking retires the source's live offers; unblocking restores what the block hid.
+          const affected = blocked
+            ? await sql<{ id: string }[]>`
+                select distinct rm.id from raw_messages rm
+                join offer_mentions om on om.raw_message_id = rm.id and om.active
+                where rm.source_id = ${id}
+              `
+            : await sql<{ id: string }[]>`
+                select rm.id from raw_messages rm
+                join lateral (
+                  select errors from raw_message_parses where raw_message_id = rm.id
+                  order by version desc limit 1
+                ) rp on true
+                where rm.source_id = ${id} and rp.errors ? 'source_blocked'
+              `;
+          await enqueueReprocess(
+            sql,
+            affected.map((row) => row.id)
+          );
+        }
       } else if (action === "alias.create") {
         entityId = typeof payload.productId === "string" ? payload.productId : null;
         entityType = "product";
@@ -444,6 +463,31 @@ export class PostgresApiRepository implements ApiRepository {
     await Promise.all(this.telemetryQueues.map((queue) => queue.close()));
     await this.connection.close();
   }
+}
+
+// Only the tagged-template call is needed, so both pools and transactions fit.
+type Transaction = (
+  strings: TemplateStringsArray,
+  ...values: string[]
+) => PromiseLike<readonly unknown[]>;
+
+/** Marks messages pending and schedules a new pipeline version through the outbox. */
+async function enqueueReprocess(sql: Transaction, rawMessageIds: string[]): Promise<number> {
+  let enqueued = 0;
+  for (const rawMessageId of new Set(rawMessageIds)) {
+    const updated = await sql`
+      update raw_messages set status = 'pending', updated_at = now() where id = ${rawMessageId} returning id
+    `;
+    if (updated.length === 0) continue;
+    await sql`
+      insert into outbox_events (topic, aggregate_id, version, correlation_id, payload)
+      select 'raw-message.created', ${rawMessageId}, coalesce(max(version), 0) + 1, ${randomUUID()},
+        ${JSON.stringify({ rawMessageId, reprocessing: true })}::jsonb
+      from outbox_events where topic = 'raw-message.created' and aggregate_id = ${rawMessageId}
+    `;
+    enqueued += 1;
+  }
+  return enqueued;
 }
 
 function redisConnection() {
