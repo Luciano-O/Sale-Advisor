@@ -35,7 +35,10 @@ describe("identifyGpuProduct", () => {
       ["Placa de video RTX 5090 32GB", "RTX 5090", "NVIDIA"],
       ["Placa De Video Asrock RX 9060 XT Challenger 16GB", "RX 9060 XT", "AMD"],
       ["Asrock Radeon RX 9070 Challenger 16GB", "RX 9070", "AMD"],
-      ["Sapphire Pulse RX 9070 XT 16GB", "RX 9070 XT", "AMD"]
+      ["Sapphire Pulse RX 9070 XT 16GB", "RX 9070 XT", "AMD"],
+      ["Placa de Vídeo ASRock Radeon RX 9070 GRE 12GB", "RX 9070 GRE", "AMD"],
+      ["Placa gráfica Gigabyte Radeon Rx 9050 Gaming Oc 8GB", "RX 9050", "AMD"],
+      ["Sapphire Pulse RX 9060 8GB", "RX 9060", "AMD"]
     ] as const;
 
     for (const [text, model, vendor] of models) {

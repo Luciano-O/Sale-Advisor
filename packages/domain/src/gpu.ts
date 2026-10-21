@@ -41,9 +41,12 @@ const AMD_MODELS = [
   "RX 7900 GRE",
   "RX 7900 XT",
   "RX 7900 XTX",
+  "RX 9050",
+  "RX 9060",
   "RX 9060 XT",
   "RX 9070",
-  "RX 9070 XT"
+  "RX 9070 XT",
+  "RX 9070 GRE"
 ];
 
 const TAXONOMY = new Map<string, GpuVendor>([
