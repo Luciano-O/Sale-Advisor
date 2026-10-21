@@ -1,6 +1,6 @@
 # ADRs
 
-ADR mais recente: `0006-railway-deployment-baseline.md`.
+ADR mais recente: `0007-single-host-vps-deployment.md`.
 
 Architecture Decision Records do projeto.
 
