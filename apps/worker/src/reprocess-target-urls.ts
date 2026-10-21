@@ -36,7 +36,8 @@ try {
     from raw_messages
     where lower(coalesce(supplied_url, '') || ' ' || text) like any (array[
       '%aoferta.net%', '%s.shopee.com.br%', '%meli.la%', '%amazon.com.br%',
-      '%mercadolivre.com.br%', '%shopee.com.br%'
+      '%mercadolivre.com.br%', '%shopee.com.br%', '%amzn.to%', '%link.amazon%',
+              '%a.aliexpress.com%', '%bit.ly%', '%cutt.ly%'
     ])
   `;
   console.log(
@@ -55,7 +56,8 @@ try {
             select id, created_at::text as "createdAt" from raw_messages
             where lower(coalesce(supplied_url, '') || ' ' || text) like any (array[
               '%aoferta.net%', '%s.shopee.com.br%', '%meli.la%', '%amazon.com.br%',
-              '%mercadolivre.com.br%', '%shopee.com.br%'
+              '%mercadolivre.com.br%', '%shopee.com.br%', '%amzn.to%', '%link.amazon%',
+              '%a.aliexpress.com%', '%bit.ly%', '%cutt.ly%'
             ])
               -- Bound as text: postgres.js would serialize a timestamptz parameter with millisecond precision.
               and (created_at, id) > (${checkpoint.createdAt}::text::timestamptz, ${checkpoint.id}::uuid)
@@ -65,7 +67,8 @@ try {
             select id, created_at::text as "createdAt" from raw_messages
             where lower(coalesce(supplied_url, '') || ' ' || text) like any (array[
               '%aoferta.net%', '%s.shopee.com.br%', '%meli.la%', '%amazon.com.br%',
-              '%mercadolivre.com.br%', '%shopee.com.br%'
+              '%mercadolivre.com.br%', '%shopee.com.br%', '%amzn.to%', '%link.amazon%',
+              '%a.aliexpress.com%', '%bit.ly%', '%cutt.ly%'
             ])
             order by created_at, id limit 100
           `;

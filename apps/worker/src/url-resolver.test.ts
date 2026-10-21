@@ -144,15 +144,6 @@ describe("safe commercial URL resolution", () => {
       error: { code: "too_many_redirects" }
     });
 
-    const tooLarge = new SafeUrlResolver({
-      dns: fakeDns({}),
-      http: scriptedHttp([{ status: 200, bodyBytes: 65_537 }])
-    });
-    expect(await tooLarge.resolve("https://meli.la/large")).toMatchObject({
-      status: "failed",
-      error: { code: "response_too_large" }
-    });
-
     const invalidRedirect = new SafeUrlResolver({
       dns: fakeDns({}),
       http: scriptedHttp([{ status: 302, location: "http://[" }])
@@ -173,6 +164,71 @@ describe("safe commercial URL resolution", () => {
       error: { code: "credentials_forbidden" }
     });
     expect(noHttp.request).not.toHaveBeenCalled();
+  });
+
+  it("treats a large final store page as the destination", async () => {
+    const http = scriptedHttp([
+      { status: 301, location: "https://shopee.com.br/product/123/456" },
+      { status: 200, bodyBytes: 65_537 }
+    ]);
+    const result = await new SafeUrlResolver({ dns: fakeDns({}), http }).resolve(
+      "https://s.shopee.com.br/abc"
+    );
+    expect(result).toMatchObject({
+      status: "resolved",
+      finalUrl: "https://shopee.com.br/product/123/456",
+      statusCode: 200,
+      resolverVersion: "safe-redirect-v2"
+    });
+  });
+
+  it("keeps the store URL when the store refuses automated requests", async () => {
+    const http = scriptedHttp([
+      { status: 302, location: "https://www.terabyteshop.com.br/produto/123/rtx-5060" },
+      { status: 403 }
+    ]);
+    const result = await new SafeUrlResolver({ dns: fakeDns({}), http }).resolve(
+      "https://aoferta.net/xyz-Terabyte"
+    );
+    expect(result).toMatchObject({
+      status: "resolved",
+      finalUrl: "https://www.terabyteshop.com.br/produto/123/rtx-5060",
+      statusCode: 403
+    });
+  });
+
+  it("still fails when the short link itself is refused or missing", async () => {
+    for (const status of [403, 404]) {
+      const result = await new SafeUrlResolver({
+        dns: fakeDns({}),
+        http: scriptedHttp([{ status }])
+      }).resolve("https://aoferta.net/blocked");
+      expect(result).toMatchObject({
+        status: "failed",
+        finalUrl: null,
+        error: { code: "http_status" }
+      });
+    }
+  });
+
+  it("follows the short-link hosts seen in real promotion messages", async () => {
+    for (const shortUrl of [
+      "https://amzn.to/4aBcDeF",
+      "https://link.amazon/abc",
+      "https://a.aliexpress.com/_mKxyz",
+      "https://bit.ly/3xyz",
+      "https://cutt.ly/abc"
+    ]) {
+      const http = scriptedHttp([
+        { status: 301, location: "https://www.amazon.com.br/dp/B0ABC12345" },
+        { status: 200 }
+      ]);
+      const result = await new SafeUrlResolver({ dns: fakeDns({}), http }).resolve(shortUrl);
+      expect(result).toMatchObject({
+        status: "resolved",
+        finalUrl: "https://www.amazon.com.br/dp/B0ABC12345"
+      });
+    }
   });
 
   it("keeps direct store URLs without fetching them", async () => {

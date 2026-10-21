@@ -4,8 +4,17 @@ import * as http from "node:http";
 import * as https from "node:https";
 import { BlockList, isIP } from "node:net";
 
-export const URL_RESOLVER_VERSION = "safe-redirect-v1";
-export const KNOWN_SHORTENER_HOSTS = new Set(["aoferta.net", "s.shopee.com.br", "meli.la"]);
+export const URL_RESOLVER_VERSION = "safe-redirect-v2";
+export const KNOWN_SHORTENER_HOSTS = new Set([
+  "aoferta.net",
+  "s.shopee.com.br",
+  "meli.la",
+  "amzn.to",
+  "link.amazon",
+  "a.aliexpress.com",
+  "bit.ly",
+  "cutt.ly"
+]);
 
 export interface UrlResolutionRecord {
   originalUrl: string;
@@ -97,17 +106,9 @@ export class SafeUrlResolver {
       for (let attempt = 1; attempt <= this.maxAttemptsPerHop; attempt += 1) {
         attempts += 1;
         try {
+          // Only the destination URL matters; the HTTP client stops reading large bodies.
           response = await this.http.request(current, validation.address);
           lastStatusCode = response.status;
-          if (response.bodyBytes > 64 * 1_024) {
-            return this.failed(
-              originalUrl,
-              redirectChain,
-              attempts,
-              response.status,
-              "response_too_large"
-            );
-          }
           if (!isRetriableStatus(response.status)) break;
           lastCode = "retriable_http_status";
         } catch {
@@ -145,7 +146,10 @@ export class SafeUrlResolver {
         redirects += 1;
         continue;
       }
-      if (response.status < 200 || response.status >= 300) {
+      // Stores often refuse automated requests; after a redirect the destination is still known.
+      const refusedAfterRedirect =
+        redirects > 0 && (response.status === 401 || response.status === 403);
+      if ((response.status < 200 || response.status >= 300) && !refusedAfterRedirect) {
         return this.failed(originalUrl, redirectChain, attempts, response.status, "http_status");
       }
       const result = this.success(
