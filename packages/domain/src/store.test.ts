@@ -31,6 +31,30 @@ describe("normalizeStore", () => {
       "shopee",
       "123456789:987654321",
       "path:shopee-item"
+    ],
+    [
+      "https://www.kabum.com.br/produto/714571/placa-de-video-gigabyte-rtx-5070-gaming-oc-12g",
+      "kabum",
+      "714571",
+      "path:kabum-product"
+    ],
+    [
+      "https://www.terabyteshop.com.br/produto/34860/placa-de-video-asrock-amd-radeon-rx-9070",
+      "terabyte",
+      "34860",
+      "path:terabyte-product"
+    ],
+    [
+      "https://www.magazineluiza.com.br/placa-de-video-msi-rtx-5060-ti/p/edb992cdf2/in/pcvd/",
+      "magazine-luiza",
+      "edb992cdf2",
+      "path:magazine-luiza-sku"
+    ],
+    [
+      "https://www.magazineluiza.com.br/placa-de-video-msi-rtx-5060-ti/divulgador/oferta/edb992cdf2/in/pcvd/",
+      "magazine-luiza",
+      "edb992cdf2",
+      "path:magazine-luiza-sku"
     ]
   ])("extracts real store identity from %s", (url, adapterName, storeProductId, source) => {
     expect(normalizeStore({ normalizedUrl: requiredUrl(url) })).toMatchObject({
@@ -38,6 +62,35 @@ describe("normalizeStore", () => {
       storeProductId,
       storeProductIdSource: source
     });
+  });
+
+  it("identifies the same store product across affiliate links", () => {
+    const first = normalizeStore({
+      normalizedUrl: requiredUrl(
+        "https://www.kabum.com.br/produto/459144/rx-7600?aw_affid=1109753&sv1=affiliate&awc=17729_1_a"
+      )
+    });
+    const second = normalizeStore({
+      normalizedUrl: requiredUrl(
+        "https://www.kabum.com.br/produto/459144/rx-7600?aw_affid=1109753&sv1=affiliate&awc=17729_2_b"
+      )
+    });
+
+    expect(first.storeProductId).toBe("459144");
+    expect(second.storeProductId).toBe(first.storeProductId);
+  });
+
+  it("does not treat store promotion pages as products", () => {
+    expect(
+      normalizeStore({ normalizedUrl: requiredUrl("https://www.kabum.com.br/promocao/CUPOM10") })
+    ).toMatchObject({ adapterName: "kabum", storeProductId: null, storeProductIdSource: "none" });
+    expect(
+      normalizeStore({
+        normalizedUrl: requiredUrl(
+          "https://www.magazineluiza.com.br/botdoafiliado/divulgador/oferta/gd7fka2k39/in/waco/"
+        )
+      })
+    ).toMatchObject({ adapterName: "magazine-luiza", storeProductId: "gd7fka2k39" });
   });
 
   it("normalizes domain casing and removes www prefix", () => {

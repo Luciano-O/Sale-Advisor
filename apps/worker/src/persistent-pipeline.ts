@@ -303,6 +303,7 @@ export class PersistentPipelineService implements OnApplicationShutdown {
           update offers set current_price_in_cents = ${price.amountInCents},
             lowest_price_in_cents = least(lowest_price_in_cents, ${price.amountInCents}),
             price_bucket_in_cents = ${priceBucketInCents},
+            store_product_id = coalesce(store_product_id, ${candidate.storeProductId}),
             last_seen_at = greatest(last_seen_at, ${candidate.capturedAt}), updated_at = now()
           where id = ${offerId}
         `;
