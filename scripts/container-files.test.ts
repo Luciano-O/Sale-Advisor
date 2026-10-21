@@ -71,3 +71,56 @@ describe("portable production containers", () => {
     expect(read(".dockerignore")).toContain("!infra/railway/nginx.conf");
   });
 });
+
+describe("single-host VPS deployment", () => {
+  const compose = () => read("infra/compose.vps.yaml");
+  const service = (name: string) =>
+    compose().match(
+      new RegExp(`\\n  ${name}:\\n([\\s\\S]*?)(?=\\n  [a-z-]+:\\n|\\nvolumes:|$)`)
+    )?.[1] ?? "";
+
+  it("exposes only Caddy to the internet", () => {
+    expect(service("caddy")).toMatch(/- "80:80"/);
+    expect(service("caddy")).toMatch(/- "443:443"/);
+    for (const name of ["admin", "backup"]) expect(service(name)).not.toContain("ports:");
+    expect(service("api")).toMatch(/ports: !reset \[\]/);
+    expect(compose()).toContain("image: caddy:2.10.2-alpine");
+  });
+
+  it("serves API and admin on their own HTTPS domains", () => {
+    const caddyfile = read("infra/vps/Caddyfile");
+    expect(caddyfile).toContain("{$API_DOMAIN}");
+    expect(caddyfile).toContain("reverse_proxy api:3000");
+    expect(caddyfile).toContain("{$ADMIN_DOMAIN}");
+    expect(caddyfile).toContain("reverse_proxy admin:8080");
+    expect(service("admin")).toContain("VITE_API_URL: https://${API_DOMAIN");
+    expect(service("api")).toContain("TRUST_PROXY_HOPS: 1");
+    expect(service("api")).toContain("CORS_ALLOWED_ORIGINS: https://${ADMIN_DOMAIN");
+  });
+
+  it("backs up PostgreSQL daily to the host with a 7-day rotation", () => {
+    const backup = read("infra/vps/backup.sh");
+    expect(service("backup")).toContain("image: postgres:17-alpine");
+    expect(service("backup")).toMatch(/\$\{BACKUP_DIR:-\/var\/backups\/sale-advisor\}:\/backups/);
+    expect(backup).toContain("pg_dump");
+    expect(backup).toMatch(/-mtime \+7/);
+    expect(backup).toContain("86400");
+  });
+
+  it("documents the VPS environment without real secrets", () => {
+    const example = read(".env.vps.example");
+    for (const name of [
+      "API_DOMAIN",
+      "ADMIN_DOMAIN",
+      "ACME_EMAIL",
+      "DATABASE_POOL_MAX",
+      "BACKUP_DIR",
+      "POSTGRES_PASSWORD",
+      "ADMIN_API_KEY"
+    ])
+      expect(example).toMatch(new RegExp(`^${name}=`, "m"));
+    expect(example).toMatch(/^TELEGRAM_ENABLED=false$/m);
+    expect(read(".gitignore")).toMatch(/^\.env\.\*$/m);
+    expect(read(".gitignore")).toMatch(/^!\.env\.vps\.example$/m);
+  });
+});

@@ -3,9 +3,9 @@ import postgres from "postgres";
 import { readDatabaseConfig } from "./config.js";
 
 export function createDatabase(environment: Record<string, string | undefined> = process.env) {
-  const { databaseUrl } = readDatabaseConfig(environment);
-  const client = postgres(databaseUrl, { max: 10 });
-  const ormClient = postgres(databaseUrl, { max: 10 });
+  const { databaseUrl, poolMax } = readDatabaseConfig(environment);
+  const client = postgres(databaseUrl, { max: poolMax });
+  const ormClient = postgres(databaseUrl, { max: poolMax });
   const db = drizzle(ormClient);
   return {
     client,
