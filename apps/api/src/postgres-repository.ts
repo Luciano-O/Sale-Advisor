@@ -3,7 +3,14 @@ import { createHash, randomUUID } from "node:crypto";
 import { createDatabase } from "@sale-advisor/database";
 import { Queue } from "bullmq";
 
-import type { ApiRepository, ImportRequest, IntegrationHealth, PublicOffer } from "./repository.js";
+import { InvalidCursorError } from "./repository.js";
+import type {
+  AddEventsResult,
+  ApiRepository,
+  ImportRequest,
+  IntegrationHealth,
+  PublicOffer
+} from "./repository.js";
 
 interface OfferRow {
   id: string;
@@ -98,34 +105,45 @@ export class PostgresApiRepository implements ApiRepository {
     minimumLabel?: string | undefined;
   }) {
     const cursor = input.cursor ? decodeCursor(input.cursor) : null;
-    const rows = await this.connection.client<OfferRow[]>`
-      select o.id, p.id as "productId", p.vendor, p.model, p.vram_gb as "vramGb",
-        s.name as "storeName", s.domain, s.reliability,
-        o.current_price_in_cents as "priceInCents", o.lowest_price_in_cents as "lowestPriceInCents",
-        o.coupon, o.condition, o.normalized_url as url, o.first_seen_at as "firstSeenAt",
-        o.last_seen_at as "lastSeenAt", o.mention_count as "mentionCount",
-        coalesce(score.label, 'normal') as label, coalesce(score.quality_score, 0) as "qualityScore",
-        coalesce(score.confidence, 'low') as confidence, coalesce(score.reasons, '[]'::jsonb) as reasons
-      from offers o
-      join products p on p.id = o.product_id
-      join stores s on s.id = o.store_id
-      left join lateral (
-        select label, quality_score, confidence, reasons from offer_scores
-        where offer_id = o.id order by created_at desc limit 1
-      ) score on true
-      where o.status = 'active' and s.blocked_at is null
-        and (${cursor?.firstSeenAt ?? null}::timestamptz is null or (o.first_seen_at, o.id) < (${cursor?.firstSeenAt ?? null}::timestamptz, ${cursor?.id ?? null}::uuid))
-        and (${input.minimumLabel ?? null}::text is null or
-          array_position(array['normal','boa','muito_boa','excepcional'], coalesce(score.label, 'normal')) >=
-          array_position(array['normal','boa','muito_boa','excepcional'], ${input.minimumLabel ?? "normal"}))
-      order by array_position(array['normal','boa','muito_boa','excepcional'], coalesce(score.label, 'normal')) desc,
-        coalesce(score.quality_score, 0) desc, o.first_seen_at desc, o.id desc
+    // Keyset pagination over the full feed ordering (label, quality, first seen, id), all
+    // descending, so pages never skip or repeat offers. first_seen_at travels as PostgreSQL
+    // text because postgres.js would truncate a timestamptz parameter to milliseconds.
+    const rows = await this.connection.client<(OfferRow & FeedKey)[]>`
+      select * from (
+        select o.id, p.id as "productId", p.vendor, p.model, p.vram_gb as "vramGb",
+          s.name as "storeName", s.domain, s.reliability,
+          o.current_price_in_cents as "priceInCents", o.lowest_price_in_cents as "lowestPriceInCents",
+          o.coupon, o.condition, o.normalized_url as url, o.first_seen_at as "firstSeenAt",
+          o.last_seen_at as "lastSeenAt", o.mention_count as "mentionCount",
+          coalesce(score.label, 'normal') as label, coalesce(score.quality_score, 0) as "qualityScore",
+          coalesce(score.confidence, 'low') as confidence, coalesce(score.reasons, '[]'::jsonb) as reasons,
+          array_position(array['normal','boa','muito_boa','excepcional'], coalesce(score.label, 'normal')) as "labelRank",
+          o.first_seen_at::text as "firstSeenAtKey"
+        from offers o
+        join products p on p.id = o.product_id
+        join stores s on s.id = o.store_id
+        left join lateral (
+          select label, quality_score, confidence, reasons from offer_scores
+          where offer_id = o.id order by created_at desc limit 1
+        ) score on true
+        where o.status = 'active' and s.blocked_at is null
+      ) feed
+      where (${input.minimumLabel ?? null}::text is null or
+          "labelRank" >= array_position(array['normal','boa','muito_boa','excepcional'], ${input.minimumLabel ?? "normal"}))
+        and (${cursor ? "1" : null}::text is null
+          or ("labelRank", "qualityScore", "firstSeenAt", id) <
+            (${cursor?.labelRank ?? null}::int, ${cursor?.qualityScore ?? null}::int,
+             ${cursor?.firstSeenAt ?? null}::text::timestamptz, ${cursor?.id ?? null}::uuid))
+      order by "labelRank" desc, "qualityScore" desc, "firstSeenAt" desc, id desc
       limit ${input.limit + 1}
     `;
     const hasNext = rows.length > input.limit;
-    const items = rows.slice(0, input.limit).map(mapOffer);
-    const last = items.at(-1);
-    return { items, nextCursor: hasNext && last ? encodeCursor(last.firstSeenAt, last.id) : null };
+    const page = rows.slice(0, input.limit);
+    const last = page.at(-1);
+    return {
+      items: page.map(mapOffer),
+      nextCursor: hasNext && last ? encodeCursor(last) : null
+    };
   }
 
   async findOffer(id: string) {
@@ -180,17 +198,24 @@ export class PostgresApiRepository implements ApiRepository {
       occurredAt: string;
       payload?: Record<string, string | number | boolean | null> | undefined;
     }>
-  ) {
-    let accepted = 0;
-    for (const event of events) {
-      const rows = await this.connection.client<{ id: string }[]>`
-        insert into anonymous_events (id, installation_id, name, occurred_at, payload)
-        values (${event.id}, ${event.installationId}, ${event.name}, ${event.occurredAt}, ${this.connection.client.json(event.payload ?? {})})
-        on conflict (id) do nothing returning id
+  ): Promise<AddEventsResult> {
+    const installationIds = [...new Set(events.map((event) => event.installationId))];
+    return this.connection.client.begin(async (sql) => {
+      const known = await sql<{ id: string }[]>`
+        select id from device_installations where id in ${sql(installationIds)}
       `;
-      accepted += rows.length;
-    }
-    return accepted;
+      if (known.length < installationIds.length) return { status: "unknown_installation" as const };
+      let acceptedCount = 0;
+      for (const event of events) {
+        const rows = await sql<{ id: string }[]>`
+          insert into anonymous_events (id, installation_id, name, occurred_at, payload)
+          values (${event.id}, ${event.installationId}, ${event.name}, ${event.occurredAt}, ${sql.json(event.payload ?? {})})
+          on conflict (id) do nothing returning id
+        `;
+        acceptedCount += rows.length;
+      }
+      return { status: "accepted" as const, acceptedCount };
+    });
   }
 
   async health() {
@@ -523,23 +548,53 @@ function mapOffer(row: OfferRow): PublicOffer {
   };
 }
 
-function encodeCursor(firstSeenAt: string, id: string) {
-  return Buffer.from(JSON.stringify({ firstSeenAt, id })).toString("base64url");
+interface FeedKey {
+  labelRank: number;
+  qualityScore: number;
+  firstSeenAtKey: string;
+  id: string;
 }
-function decodeCursor(value: string): { firstSeenAt: string; id: string } {
+
+interface FeedCursor {
+  labelRank: number;
+  qualityScore: number;
+  firstSeenAt: string;
+  id: string;
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function encodeCursor(row: FeedKey) {
+  const cursor: FeedCursor = {
+    labelRank: row.labelRank,
+    qualityScore: row.qualityScore,
+    firstSeenAt: row.firstSeenAtKey,
+    id: row.id
+  };
+  return Buffer.from(JSON.stringify(cursor)).toString("base64url");
+}
+
+function decodeCursor(value: string): FeedCursor {
+  let parsed: Partial<Record<keyof FeedCursor, unknown>>;
   try {
-    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as unknown;
-    if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      !("firstSeenAt" in parsed) ||
-      !("id" in parsed) ||
-      typeof parsed.firstSeenAt !== "string" ||
-      typeof parsed.id !== "string"
-    )
-      throw new Error();
-    return { firstSeenAt: parsed.firstSeenAt, id: parsed.id };
+    parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as typeof parsed;
   } catch {
-    throw new Error("Invalid cursor");
+    throw new InvalidCursorError();
   }
+  if (
+    !parsed ||
+    !Number.isSafeInteger(parsed.labelRank) ||
+    !Number.isSafeInteger(parsed.qualityScore) ||
+    typeof parsed.firstSeenAt !== "string" ||
+    Number.isNaN(Date.parse(parsed.firstSeenAt)) ||
+    typeof parsed.id !== "string" ||
+    !UUID_PATTERN.test(parsed.id)
+  )
+    throw new InvalidCursorError();
+  return {
+    labelRank: parsed.labelRank as number,
+    qualityScore: parsed.qualityScore as number,
+    firstSeenAt: parsed.firstSeenAt,
+    id: parsed.id
+  };
 }

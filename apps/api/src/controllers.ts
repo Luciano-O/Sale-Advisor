@@ -24,7 +24,7 @@ import type { ImportMessage } from "@sale-advisor/contracts";
 import { z } from "zod";
 
 import { AdminKeyGuard } from "./admin-key.guard.js";
-import { API_REPOSITORY, type ApiRepository } from "./repository.js";
+import { API_REPOSITORY, type ApiRepository, InvalidCursorError } from "./repository.js";
 
 const importEnvelopeSchema = z.object({
   schemaVersion: z.literal(1),
@@ -226,7 +226,12 @@ export class OffersController {
   constructor(@Inject(API_REPOSITORY) private readonly repository: ApiRepository) {}
   @Get()
   async list(@Query() query: unknown) {
-    return this.repository.listOffers(parse(offerCursorSchema, query));
+    try {
+      return await this.repository.listOffers(parse(offerCursorSchema, query));
+    } catch (error) {
+      if (error instanceof InvalidCursorError) throw new BadRequestException("invalid_cursor");
+      throw error;
+    }
   }
   @Get(":id")
   async detail(@Param("id") id: string) {
@@ -267,6 +272,10 @@ export class EventsController {
   @Post("batch")
   async batch(@Body() body: unknown) {
     const batch = parse(anonymousEventBatchSchema, body);
-    return { acceptedCount: await this.repository.addEvents(batch.events) };
+    const result = await this.repository.addEvents(batch.events);
+    // The app re-registers the installation and retries the batch on this answer.
+    if (result.status === "unknown_installation")
+      throw new NotFoundException("installation_not_found");
+    return { acceptedCount: result.acceptedCount };
   }
 }

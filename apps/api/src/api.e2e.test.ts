@@ -186,6 +186,47 @@ describe("MVP API", () => {
       .expect(200);
   });
 
+  it("rejects a malformed feed cursor as a bad request", async () => {
+    for (const cursor of ["not-a-cursor", Buffer.from('{"rank":"x"}').toString("base64url")])
+      await request(context.app.getHttpServer()).get("/v1/offers").query({ cursor }).expect(400);
+  });
+
+  it("rejects the whole event batch when an installation is not registered", async () => {
+    const registered = "0b2f6a0e-8f1d-4a59-9a5e-6d2b8c1e4f70";
+    const unknown = "9c1d2e3f-4a5b-4c6d-8e7f-0a1b2c3d4e5f";
+    await request(context.app.getHttpServer())
+      .post("/v1/installations")
+      .send({ id: registered, platform: "android", appVersion: "1.0.0" })
+      .expect(201);
+    const event = (id: string, installationId: string) => ({
+      id,
+      installationId,
+      name: "app_opened",
+      occurredAt: "2026-10-26T12:00:00.000Z"
+    });
+    const batch = {
+      events: [
+        event("6a7b8c9d-0e1f-4a2b-8c3d-4e5f6a7b8c9d", registered),
+        event("7b8c9d0e-1f2a-4b3c-9d4e-5f6a7b8c9d0e", unknown)
+      ]
+    };
+
+    await request(context.app.getHttpServer())
+      .post("/v1/events/batch")
+      .send(batch)
+      .expect(404)
+      .expect(({ body }) => expect(body.message).toBe("installation_not_found"));
+
+    await request(context.app.getHttpServer())
+      .post("/v1/installations")
+      .send({ id: unknown, platform: "android", appVersion: "1.0.0" })
+      .expect(201);
+    expect(
+      (await request(context.app.getHttpServer()).post("/v1/events/batch").send(batch).expect(201))
+        .body.acceptedCount
+    ).toBe(2);
+  });
+
   it("upserts anonymous installations, preferences and idempotent event batches", async () => {
     const installationId = "5fa72ea4-2441-45cd-8993-4d56e837cc4a";
     await request(context.app.getHttpServer())
