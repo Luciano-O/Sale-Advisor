@@ -79,12 +79,30 @@ describe("single-host VPS deployment", () => {
       new RegExp(`\\n  ${name}:\\n([\\s\\S]*?)(?=\\n  [a-z-]+:\\n|\\nvolumes:|$)`)
     )?.[1] ?? "";
 
-  it("exposes only Caddy to the internet", () => {
+  it("binds API and admin to loopback for the host's reverse proxy", () => {
+    expect(service("api")).toContain('- "127.0.0.1:${API_HOST_PORT:-3200}:3000"');
+    expect(service("admin")).toContain('- "127.0.0.1:${ADMIN_HOST_PORT:-3201}:8080"');
+    expect(service("api")).toMatch(/ports: !override/);
+    expect(service("backup")).not.toContain("ports:");
+    expect(compose()).not.toMatch(/"0\.0\.0\.0:/);
+  });
+
+  it("runs Caddy only when the host has no web server", () => {
+    expect(service("caddy")).toMatch(/profiles:\s*\["caddy"\]/);
     expect(service("caddy")).toMatch(/- "80:80"/);
     expect(service("caddy")).toMatch(/- "443:443"/);
-    for (const name of ["admin", "backup"]) expect(service(name)).not.toContain("ports:");
-    expect(service("api")).toMatch(/ports: !reset \[\]/);
     expect(compose()).toContain("image: caddy:2.10.2-alpine");
+    expect(compose()).not.toContain("ACME_EMAIL");
+  });
+
+  it("proxies an Enhance/Apache site to a loopback port over TLS only", () => {
+    const include = read("infra/vps/apache-include.conf.template");
+    expect(include).toContain("RewriteRule ^/\\.well-known/acme-challenge/ - [L]");
+    expect(include).toContain("RewriteCond %{HTTPS} !=on");
+    expect(include).toContain("https://__DOMAIN__%{REQUEST_URI} [R=308,L,NE]");
+    expect(include).toContain('RequestHeader set X-Forwarded-Proto "https"');
+    expect(include).toContain("RewriteRule ^/(.*)$ http://127.0.0.1:__PORT__/$1 [P,L,NE]");
+    expect(include).toContain("ProxyPassReverse / http://127.0.0.1:__PORT__/");
   });
 
   it("serves API and admin on their own HTTPS domains", () => {
@@ -112,7 +130,8 @@ describe("single-host VPS deployment", () => {
     for (const name of [
       "API_DOMAIN",
       "ADMIN_DOMAIN",
-      "ACME_EMAIL",
+      "API_HOST_PORT",
+      "ADMIN_HOST_PORT",
       "DATABASE_POOL_MAX",
       "BACKUP_DIR",
       "POSTGRES_PASSWORD",

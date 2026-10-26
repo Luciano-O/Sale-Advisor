@@ -20,15 +20,25 @@ origem HTTPS em produção, e o app mobile precisa alcançar a API por HTTPS.
 Rodar tudo em uma VPS Ubuntu 24.04 com Docker Compose, combinando `compose.production.yaml` com
 um override `infra/compose.vps.yaml` que adiciona:
 
-- **Caddy** como único serviço publicado (80/443), com certificados automáticos do Let's Encrypt
-  para `api.<domínio>` e `admin.<domínio>`;
 - **admin** compilado com `VITE_API_URL=https://api.<domínio>`, reaproveitando
   `infra/railway/admin.Dockerfile` e o Nginx não-root;
-- **backup** com `pg_dump` diário em uma pasta do host, mantendo 7 dias.
+- **backup** com `pg_dump` diário em uma pasta do host, mantendo 7 dias, iniciado depois das
+  migrations.
 
-A API deixa de publicar a porta 3000 no host, passa a confiar em um proxy
-(`TRUST_PROXY_HOPS=1`) e aceita CORS apenas do domínio do admin. `DATABASE_POOL_MAX` limita as
-conexões por pool, porque API e worker abrem vários pools no mesmo PostgreSQL.
+API e admin escutam apenas em `127.0.0.1` (`API_HOST_PORT`, padrão 3200, e `ADMIN_HOST_PORT`,
+padrão 3201). O HTTPS fica com o servidor web que já existe no host. A VPS escolhida é gerenciada
+pelo painel **Enhance**, cujo Apache ocupa 80/443 e já publica outro app do mesmo jeito: um site do
+Enhance cuida do domínio e do certificado, e um include em
+`/etc/apache2/vhost_includes/<domínio>.conf` faz o proxy para a porta de loopback. O include é
+gerado a partir de `infra/vps/apache-include.conf.template` por
+`infra/vps/render-apache-include.sh`.
+
+Para um host sem servidor web, o profile opcional `caddy` publica 80/443 com certificados
+automáticos (`--profile caddy`).
+
+A API passa a confiar em um proxy (`TRUST_PROXY_HOPS=1`) e aceita CORS apenas do domínio do admin.
+`DATABASE_POOL_MAX` limita as conexões por pool, porque API e worker abrem vários pools no mesmo
+PostgreSQL.
 
 O build acontece na própria VPS a partir do repositório (`git pull` e `up --build`). Não há
 registry nem CI de deploy.
@@ -36,6 +46,11 @@ registry nem CI de deploy.
 ## Consequências
 
 - Custo fixo baixo e previsível, com uma única máquina para operar.
+- A VPS é compartilhada com outros serviços (e-mail, banco do painel, TeamSpeak e outro app).
+  O Sale Advisor usa PostgreSQL e Redis próprios em containers, sem publicar portas, e não toca
+  nos serviços do host.
+- Os sites e certificados ficam no painel Enhance; o include do Apache é o único arquivo do host
+  editado à mão e precisa ser recriado se o site for removido do painel.
 - Sem alta disponibilidade: queda da VPS interrompe coleta, API e push. A recuperação de
   mensagens após restart (fase 0) cobre quedas curtas do worker.
 - O backup fica no mesmo disco até ser copiado para fora; o runbook exige a cópia e um ensaio
@@ -60,3 +75,5 @@ banco em uso.
 - Expor a API sem domínio, só por IP: rejeitado porque o app mobile e o CORS do admin exigem HTTPS.
 - Tailscale no lugar de HTTPS público: rejeitado porque o push e o feed dependeriam de a VPN do
   celular estar sempre ativa.
+- Caddy publicado diretamente na VPS do Enhance: rejeitado porque o Apache do painel já ocupa
+  80/443; disputar as portas quebraria os sites existentes.
