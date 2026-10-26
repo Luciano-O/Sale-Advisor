@@ -5,6 +5,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { AdminKeyGuard } from "./admin-key.guard.js";
 import {
   AdminController,
+  CatalogController,
   EventsController,
   HealthController,
   InstallationsController,
@@ -36,6 +37,7 @@ export class ApiModule {
         HealthController,
         AdminController,
         OffersController,
+        CatalogController,
         InstallationsController,
         EventsController
       ],

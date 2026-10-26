@@ -6,6 +6,7 @@ import { Queue } from "bullmq";
 import { InvalidCursorError } from "./repository.js";
 import type {
   AddEventsResult,
+  CatalogModel,
   ApiRepository,
   ImportRequest,
   IntegrationHealth,
@@ -144,6 +145,14 @@ export class PostgresApiRepository implements ApiRepository {
       items: page.map(mapOffer),
       nextCursor: hasNext && last ? encodeCursor(last) : null
     };
+  }
+
+  async listCatalog(): Promise<CatalogModel[]> {
+    return this.connection.client<CatalogModel[]>`
+      select distinct 'GPU' as category, p.vendor, p.model from products p
+      where exists (select 1 from offers o where o.product_id = p.id)
+      order by p.vendor, p.model
+    `;
   }
 
   async findOffer(id: string) {

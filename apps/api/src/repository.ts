@@ -52,6 +52,12 @@ export interface RuntimeHealth {
   outboxPending: number;
 }
 
+export interface CatalogModel {
+  category: "GPU";
+  vendor: string;
+  model: string;
+}
+
 /** A feed cursor that was not produced by this API; answered with 400. */
 export class InvalidCursorError extends Error {
   constructor() {
@@ -73,6 +79,8 @@ export interface ApiRepository {
     minimumLabel?: string | undefined;
   }): Promise<{ items: PublicOffer[]; nextCursor: string | null }>;
   findOffer(id: string): Promise<PublicOffer | null>;
+  /** Distinct GPU models seen in offers, for choosing followed models in the app. */
+  listCatalog(): Promise<CatalogModel[]>;
   upsertInstallation(input: { id: string; platform: string; appVersion: string }): Promise<void>;
   updatePushTarget(
     id: string,
@@ -170,6 +178,20 @@ export class InMemoryApiRepository implements ApiRepository {
 
   async findOffer(id: string) {
     return this.offers.find((offer) => offer.id === id) ?? null;
+  }
+
+  async listCatalog(): Promise<CatalogModel[]> {
+    const models = new Map<string, CatalogModel>();
+    for (const { product } of this.offers)
+      models.set(`${product.vendor}|${product.model}`, {
+        category: "GPU",
+        vendor: product.vendor,
+        model: product.model
+      });
+    return [...models.values()].sort(
+      (left, right) =>
+        left.vendor.localeCompare(right.vendor) || left.model.localeCompare(right.model)
+    );
   }
 
   async upsertInstallation(input: { id: string; platform: string; appVersion: string }) {
