@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type { OnApplicationShutdown, OnModuleInit } from "@nestjs/common";
 import { JsonStructuredLogger } from "@sale-advisor/shared";
 
@@ -13,7 +13,10 @@ export class OfferExpiryScheduler implements OnModuleInit, OnApplicationShutdown
   private timer?: ReturnType<typeof setInterval>;
   private running = false;
 
-  constructor(private readonly pipeline: PersistentPipelineService) {}
+  // Explicit token: tsx/esbuild builds emit no decorator metadata for constructor types.
+  constructor(
+    @Inject(PersistentPipelineService) private readonly pipeline: PersistentPipelineService
+  ) {}
 
   onModuleInit() {
     this.timer = setInterval(() => void this.run(), EXPIRY_INTERVAL_MS);
