@@ -6,6 +6,7 @@ x-common-environment: &common-environment
   REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
   LOG_LEVEL: ${LOG_LEVEL:-info}
   DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
+  OFFER_TTL_HOURS: ${OFFER_TTL_HOURS:-72}
 
 services:
   api:

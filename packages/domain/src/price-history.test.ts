@@ -63,6 +63,25 @@ describe("price history scoring", () => {
     expect(metrics.usedSnapshotOfferIds30d).toEqual(["previous"]);
   });
 
+  it("scores an offer against the history before its latest mention", () => {
+    const current = {
+      ...offer({ id: "current", firstSeenAt: "2026-07-03T10:00:00.000Z", amountInCents: 180000 }),
+      lastSeenAt: "2026-07-06T10:00:00.000Z"
+    };
+    const snapshots = createPriceSnapshots([
+      offer({ id: "before-first", firstSeenAt: "2026-07-01T10:00:00.000Z", amountInCents: 200000 }),
+      offer({ id: "between-1", firstSeenAt: "2026-07-04T10:00:00.000Z", amountInCents: 200000 }),
+      offer({ id: "between-2", firstSeenAt: "2026-07-05T10:00:00.000Z", amountInCents: 200000 }),
+      offer({ id: "after-last", firstSeenAt: "2026-07-07T10:00:00.000Z", amountInCents: 100000 })
+    ]);
+
+    const scored = scoreOffer(current, snapshots);
+
+    expect(scored.metrics.snapshotCount30d).toBe(3);
+    expect(scored.label).toBe("muito_boa");
+    expect(scored.audit.scoredAt).toBe("2026-07-06T10:00:00.000Z");
+  });
+
   it("calculates lowest prices for 7d, 30d and 90d windows", () => {
     const current = offer({
       id: "current",
@@ -182,7 +201,7 @@ describe("price history scoring", () => {
 
     const result = scoreOffersWithPriceHistory(offers);
 
-    expect(result.scoringPolicy.version).toBe("offline-price-history-v1");
+    expect(result.scoringPolicy.version).toBe("offline-price-history-v2");
     expect(result.priceSnapshots.map((snapshot) => snapshot.offerId)).toEqual([
       "history-1",
       "history-2",
