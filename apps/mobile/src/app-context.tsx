@@ -47,6 +47,8 @@ interface AppState {
   loadMore(): Promise<void>;
   savePreferences(value: LocalPreferences): Promise<void>;
   hideOffer(id: string): Promise<void>;
+  hiddenCount: number;
+  showHiddenOffers(): Promise<void>;
   track(
     name: AnonymousEventName,
     payload?: Record<string, string | number | boolean | null>
@@ -195,6 +197,11 @@ export function AppProvider({ children }: PropsWithChildren) {
     [database, track]
   );
 
+  const showHiddenOffers = useCallback(async () => {
+    await database.unhideAll();
+    setHiddenIds(new Set());
+  }, [database]);
+
   const value = useMemo<AppState>(
     () => ({
       offers: filterOffers(allOffers, preferences, hiddenIds),
@@ -211,6 +218,8 @@ export function AppProvider({ children }: PropsWithChildren) {
       loadMore,
       savePreferences: save,
       hideOffer,
+      hiddenCount: hiddenIds.size,
+      showHiddenOffers,
       track
     }),
     [
@@ -229,6 +238,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       loadMore,
       save,
       hideOffer,
+      showHiddenOffers,
       track
     ]
   );

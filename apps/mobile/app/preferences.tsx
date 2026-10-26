@@ -2,7 +2,9 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { type CatalogModel, fetchCatalog } from "../src/api";
 import { useApp } from "../src/app-context";
+import { modelChoices, toggleModel } from "../src/selection";
 import { colors, commonStyles } from "../src/theme";
 import type { ScoreLabel } from "../src/types";
 
@@ -14,18 +16,34 @@ const split = (value: string) =>
     .filter(Boolean);
 
 export default function PreferencesScreen() {
-  const { preferences, savePreferences, installationId } = useApp();
+  const { preferences, savePreferences, installationId, hiddenCount, showHiddenOffers } = useApp();
+  const [followedModels, setFollowedModels] = useState<string[]>([]);
   const [models, setModels] = useState("");
   const [brands, setBrands] = useState("");
   const [stores, setStores] = useState("");
   const [minimumLabel, setMinimumLabel] = useState<ScoreLabel>(preferences.minimumLabel);
+  // Null while loading or offline: the screen falls back to the free-text field.
+  const [catalog, setCatalog] = useState<CatalogModel[] | null>(null);
 
   useEffect(() => {
+    setFollowedModels(preferences.followedModels);
     setModels(preferences.followedModels.join(", "));
     setBrands(preferences.blockedBrands.join(", "));
     setStores(preferences.blockedStores.join(", "));
     setMinimumLabel(preferences.minimumLabel);
   }, [preferences]);
+
+  useEffect(() => {
+    let active = true;
+    fetchCatalog()
+      .then((items) => {
+        if (active) setCatalog(items);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.content}>
@@ -35,13 +53,36 @@ export default function PreferencesScreen() {
         Modelos, marcas e lojas bloqueadas não saem do dispositivo. O servidor recebe apenas GPU e o
         nível mínimo.
       </Text>
-      <Field
-        label="Modelos seguidos"
-        helper="Separe por vírgulas. Vazio acompanha qualquer GPU."
-        value={models}
-        onChangeText={setModels}
-        placeholder="RTX 4060, RX 7600"
-      />
+      {catalog ? (
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Modelos seguidos</Text>
+          <View style={styles.labels}>
+            {modelChoices(catalog, followedModels).map((model) => {
+              const selected = followedModels.some(
+                (item) => item.toLocaleLowerCase("pt-BR") === model.toLocaleLowerCase("pt-BR")
+              );
+              return (
+                <Pressable
+                  key={model}
+                  style={[styles.pill, selected && styles.pillActive]}
+                  onPress={() => setFollowedModels((current) => toggleModel(current, model))}
+                >
+                  <Text style={[styles.pillText, selected && styles.pillTextActive]}>{model}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={styles.helper}>Nenhum selecionado acompanha qualquer GPU.</Text>
+        </View>
+      ) : (
+        <Field
+          label="Modelos seguidos"
+          helper="Separe por vírgulas. Vazio acompanha qualquer GPU."
+          value={models}
+          onChangeText={setModels}
+          placeholder="RTX 5060, RX 9070 XT"
+        />
+      )}
       <Field
         label="Marcas bloqueadas"
         helper="Fabricantes que não devem aparecer."
@@ -77,7 +118,7 @@ export default function PreferencesScreen() {
         onPress={() => {
           void savePreferences({
             followedCategories: ["GPU"],
-            followedModels: split(models),
+            followedModels: catalog ? followedModels : split(models),
             blockedBrands: split(brands),
             blockedStores: split(stores),
             minimumLabel
@@ -86,6 +127,11 @@ export default function PreferencesScreen() {
       >
         <Text style={commonStyles.buttonText}>Salvar filtros</Text>
       </Pressable>
+      {hiddenCount > 0 ? (
+        <Pressable style={styles.secondaryButton} onPress={() => void showHiddenOffers()}>
+          <Text style={styles.secondaryButtonText}>Mostrar ofertas ocultas ({hiddenCount})</Text>
+        </Pressable>
+      ) : null}
       <Text style={styles.installation}>Instalação anônima: {installationId ?? "criando…"}</Text>
     </ScrollView>
   );
@@ -131,5 +177,13 @@ const styles = StyleSheet.create({
   pillActive: { backgroundColor: colors.accentDark, borderColor: colors.accent },
   pillText: { color: colors.muted, fontSize: 12, fontWeight: "800", textTransform: "uppercase" },
   pillTextActive: { color: colors.accent },
+  secondaryButton: {
+    alignItems: "center",
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 12
+  },
+  secondaryButtonText: { color: colors.text, fontWeight: "700" },
   installation: { color: colors.muted, fontSize: 10, textAlign: "center" }
 });

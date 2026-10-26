@@ -26,9 +26,7 @@ describe("offersPath", () => {
   });
 
   it("encodes the cursor of the next page", () => {
-    expect(offersPath("eyJpZCI6IngifQ==")).toBe(
-      "/v1/offers?limit=20&cursor=eyJpZCI6IngifQ%3D%3D"
-    );
+    expect(offersPath("eyJpZCI6IngifQ==")).toBe("/v1/offers?limit=20&cursor=eyJpZCI6IngifQ%3D%3D");
   });
 });
 

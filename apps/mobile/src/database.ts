@@ -18,6 +18,7 @@ export interface MobileDatabase {
   savePreferences(preferences: LocalPreferences): Promise<void>;
   getHiddenIds(): Promise<Set<string>>;
   hide(id: string): Promise<void>;
+  unhideAll(): Promise<void>;
   enqueueEvent(event: Omit<PendingEvent, "id" | "attempts">): Promise<string>;
   wasNotificationShown(offerId: string): Promise<boolean>;
   markNotificationShown(offerId: string): Promise<void>;
@@ -111,6 +112,9 @@ export function createMobileDatabase(database: SQLiteDatabase): MobileDatabase {
         id,
         new Date().toISOString()
       );
+    },
+    async unhideAll() {
+      await database.runAsync("DELETE FROM hidden_offers");
     },
     async enqueueEvent(event) {
       const id = randomUUID();
