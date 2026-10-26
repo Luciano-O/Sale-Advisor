@@ -22,8 +22,17 @@ describe("runtime configuration", () => {
     expect(readWorkerConfig(base)).toMatchObject({
       nodeEnvironment: "development",
       notificationProvider: "fake",
-      logLevel: "info"
+      logLevel: "info",
+      offerTtlHours: 72
     });
+  });
+
+  it("reads how long an offer stays active without a new mention", () => {
+    expect(readWorkerConfig({ ...base, OFFER_TTL_HOURS: "24" }).offerTtlHours).toBe(24);
+    for (const invalid of ["0", "-5", "1.5", "abc", "721"])
+      expect(() => readWorkerConfig({ ...base, OFFER_TTL_HOURS: invalid })).toThrow(
+        /OFFER_TTL_HOURS/
+      );
   });
 
   it("requires explicit production origins, proxy hops and notification provider", () => {

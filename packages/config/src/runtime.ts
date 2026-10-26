@@ -19,7 +19,12 @@ export interface ApiRuntimeConfig extends CommonRuntimeConfig {
 
 export interface WorkerRuntimeConfig extends CommonRuntimeConfig {
   notificationProvider: "fake" | "fcm";
+  /** Hours without a new mention after which an offer leaves the feed. */
+  offerTtlHours: number;
 }
+
+const DEFAULT_OFFER_TTL_HOURS = 72;
+const MAX_OFFER_TTL_HOURS = 720;
 
 const LOCAL_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"];
 
@@ -64,7 +69,19 @@ export function readWorkerConfig(
     throw new Error("NOTIFICATION_PROVIDER is required in production");
   if (value !== undefined && value !== "fake" && value !== "fcm")
     throw new Error("NOTIFICATION_PROVIDER must be fake or fcm");
-  return { ...common, notificationProvider: value ?? "fake" };
+  return {
+    ...common,
+    notificationProvider: value ?? "fake",
+    offerTtlHours: readOfferTtlHours(environment.OFFER_TTL_HOURS)
+  };
+}
+
+function readOfferTtlHours(value: string | undefined): number {
+  if (value === undefined || value.trim() === "") return DEFAULT_OFFER_TTL_HOURS;
+  const hours = Number(value);
+  if (!Number.isInteger(hours) || hours < 1 || hours > MAX_OFFER_TTL_HOURS)
+    throw new Error(`OFFER_TTL_HOURS must be an integer between 1 and ${MAX_OFFER_TTL_HOURS}`);
+  return hours;
 }
 
 export function readCommonConfig(
