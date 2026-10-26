@@ -1,7 +1,8 @@
 # Docs
 
-Deploy Railway: `railway-deployment-runbook.md` descreve provisionamento, smoke, Telegram e rollback
-do ambiente de staging.
+Deploy atual: `vps-runbook.md` publica o MVP pessoal em uma VPS com Docker Compose, HTTPS,
+backup e coleta do Telegram 24/7 (ADR 0007). O deploy no Railway (`railway-deployment-runbook.md`,
+ADR 0006) está suspenso.
 
 Documentação técnica do Sale Advisor.
 

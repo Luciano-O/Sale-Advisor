@@ -71,3 +71,75 @@ describe("portable production containers", () => {
     expect(read(".dockerignore")).toContain("!infra/railway/nginx.conf");
   });
 });
+
+describe("single-host VPS deployment", () => {
+  const compose = () => read("infra/compose.vps.yaml");
+  const service = (name: string) =>
+    compose().match(
+      new RegExp(`\\n  ${name}:\\n([\\s\\S]*?)(?=\\n  [a-z-]+:\\n|\\nvolumes:|$)`)
+    )?.[1] ?? "";
+
+  it("binds API and admin to loopback for the host's reverse proxy", () => {
+    expect(service("api")).toContain('- "127.0.0.1:${API_HOST_PORT:-3200}:3000"');
+    expect(service("admin")).toContain('- "127.0.0.1:${ADMIN_HOST_PORT:-3201}:8080"');
+    expect(service("api")).toMatch(/ports: !override/);
+    expect(service("backup")).not.toContain("ports:");
+    expect(compose()).not.toMatch(/"0\.0\.0\.0:/);
+  });
+
+  it("runs Caddy only when the host has no web server", () => {
+    expect(service("caddy")).toMatch(/profiles:\s*\["caddy"\]/);
+    expect(service("caddy")).toMatch(/- "80:80"/);
+    expect(service("caddy")).toMatch(/- "443:443"/);
+    expect(compose()).toContain("image: caddy:2.10.2-alpine");
+    expect(compose()).not.toContain("ACME_EMAIL");
+  });
+
+  it("proxies an Enhance/Apache site to a loopback port over TLS only", () => {
+    const include = read("infra/vps/apache-include.conf.template");
+    expect(include).toContain("RewriteRule ^/\\.well-known/acme-challenge/ - [L]");
+    expect(include).toContain("RewriteCond %{HTTPS} !=on");
+    expect(include).toContain("https://__DOMAIN__%{REQUEST_URI} [R=308,L,NE]");
+    expect(include).toContain('RequestHeader set X-Forwarded-Proto "https"');
+    expect(include).toContain("RewriteRule ^/(.*)$ http://127.0.0.1:__PORT__/$1 [P,L,NE]");
+    expect(include).toContain("ProxyPassReverse / http://127.0.0.1:__PORT__/");
+  });
+
+  it("serves API and admin on their own HTTPS domains", () => {
+    const caddyfile = read("infra/vps/Caddyfile");
+    expect(caddyfile).toContain("{$API_DOMAIN}");
+    expect(caddyfile).toContain("reverse_proxy api:3000");
+    expect(caddyfile).toContain("{$ADMIN_DOMAIN}");
+    expect(caddyfile).toContain("reverse_proxy admin:8080");
+    expect(service("admin")).toContain("VITE_API_URL: https://${API_DOMAIN");
+    expect(service("api")).toContain("TRUST_PROXY_HOPS: 1");
+    expect(service("api")).toContain("CORS_ALLOWED_ORIGINS: https://${ADMIN_DOMAIN");
+  });
+
+  it("backs up PostgreSQL daily to the host with a 7-day rotation", () => {
+    const backup = read("infra/vps/backup.sh");
+    expect(service("backup")).toContain("image: postgres:17-alpine");
+    expect(service("backup")).toMatch(/\$\{BACKUP_DIR:-\/var\/backups\/sale-advisor\}:\/backups/);
+    expect(backup).toContain("pg_dump");
+    expect(backup).toMatch(/-mtime \+7/);
+    expect(backup).toContain("86400");
+  });
+
+  it("documents the VPS environment without real secrets", () => {
+    const example = read(".env.vps.example");
+    for (const name of [
+      "API_DOMAIN",
+      "ADMIN_DOMAIN",
+      "API_HOST_PORT",
+      "ADMIN_HOST_PORT",
+      "DATABASE_POOL_MAX",
+      "BACKUP_DIR",
+      "POSTGRES_PASSWORD",
+      "ADMIN_API_KEY"
+    ])
+      expect(example).toMatch(new RegExp(`^${name}=`, "m"));
+    expect(example).toMatch(/^TELEGRAM_ENABLED=false$/m);
+    expect(read(".gitignore")).toMatch(/^\.env\.\*$/m);
+    expect(read(".gitignore")).toMatch(/^!\.env\.vps\.example$/m);
+  });
+});

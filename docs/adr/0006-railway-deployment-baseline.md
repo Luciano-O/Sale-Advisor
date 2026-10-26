@@ -1,6 +1,6 @@
 # ADR 0006: baseline de deploy gerenciado no Railway
 
-- Status: aceita
+- Status: suspensa pela ADR 0007 (2026-10-21)
 - Data: 2026-08-04
 
 ## Contexto

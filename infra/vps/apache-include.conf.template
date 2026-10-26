@@ -1,0 +1,19 @@
+# Apache include for an Enhance-managed site (ADR 0007).
+# Render with __DOMAIN__ and __PORT__ and save as /etc/apache2/vhost_includes/<domain>.conf;
+# Enhance loads it from both the HTTP and HTTPS virtual hosts of that site.
+RewriteEngine On
+
+# Keep Let's Encrypt validation on the Enhance-managed alias.
+RewriteRule ^/\.well-known/acme-challenge/ - [L]
+
+# Canonicalize the hostname and require TLS before proxying.
+RewriteCond %{HTTP_HOST} !^__DOMAIN_REGEX__$ [NC,OR]
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://__DOMAIN__%{REQUEST_URI} [R=308,L,NE]
+
+ProxyPreserveHost On
+RequestHeader set X-Forwarded-Proto "https"
+RequestHeader set X-Forwarded-Port "443"
+RewriteCond %{HTTPS} =on
+RewriteRule ^/(.*)$ http://127.0.0.1:__PORT__/$1 [P,L,NE]
+ProxyPassReverse / http://127.0.0.1:__PORT__/

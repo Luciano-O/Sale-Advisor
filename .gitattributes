@@ -46,6 +46,8 @@
 .prettierignore text eol=lf
 Dockerfile text eol=lf
 *.dockerfile text eol=lf
+Caddyfile text eol=lf
+*.template text eol=lf
 
 # Windows command scripts require CRLF.
 *.bat text eol=crlf

@@ -1,0 +1,10 @@
+# Used only with `--profile caddy`, on hosts without their own web server.
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:3000
+}
+
+{$ADMIN_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy admin:8080
+}
