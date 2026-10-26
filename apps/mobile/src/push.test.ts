@@ -40,6 +40,63 @@ describe("data-only push handling", () => {
     expect(dependencies.markShown).toHaveBeenCalledWith("offer-1");
   });
 
+  const summary = {
+    productId: "product-9",
+    vendor: "NVIDIA",
+    model: "RTX 5070",
+    vramGb: 12,
+    storeName: "terabyteshop.com.br",
+    storeDomain: "terabyteshop.com.br",
+    priceCents: 419900,
+    label: "excepcional"
+  };
+
+  function summaryDependencies(overrides: Partial<LocalPreferences> = {}) {
+    return {
+      getOffer: vi.fn(async () => offer),
+      getPreferences: vi.fn(async () => ({ ...preferences, ...overrides })),
+      getHiddenIds: vi.fn(async () => new Set<string>()),
+      wasShown: vi.fn(async () => false),
+      markShown: vi.fn(async () => undefined),
+      showLocalNotification: vi.fn(async () => undefined)
+    };
+  }
+
+  it("shows an offer from the push summary without fetching it", async () => {
+    const dependencies = summaryDependencies();
+    await expect(
+      handleOfferPush({ offerId: "offer-9", offer: JSON.stringify(summary) }, dependencies)
+    ).resolves.toBe("shown");
+
+    expect(dependencies.getOffer).not.toHaveBeenCalled();
+    expect(dependencies.showLocalNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "offer-9",
+        productId: "product-9",
+        product: { category: "GPU", vendor: "NVIDIA", model: "RTX 5070", vramGb: 12 },
+        store: { name: "terabyteshop.com.br", domain: "terabyteshop.com.br" },
+        effectivePriceCents: 419900,
+        label: "excepcional"
+      })
+    );
+  });
+
+  it("applies local filters to the push summary", async () => {
+    const dependencies = summaryDependencies({ followedModels: ["RX 9070 XT"] });
+    await expect(
+      handleOfferPush({ offerId: "offer-9", offer: JSON.stringify(summary) }, dependencies)
+    ).resolves.toBe("filtered");
+    expect(dependencies.getOffer).not.toHaveBeenCalled();
+  });
+
+  it("fetches the offer when the push summary is malformed", async () => {
+    const dependencies = summaryDependencies();
+    for (const malformed of ["not json", JSON.stringify({ ...summary, label: "otima" })]) {
+      await handleOfferPush({ offerId: "offer-1", offer: malformed }, dependencies);
+    }
+    expect(dependencies.getOffer).toHaveBeenCalledTimes(2);
+  });
+
   it("ignores invalid, duplicate and locally blocked notifications", async () => {
     const dependencies = {
       getOffer: vi.fn(async () => offer),

@@ -4,7 +4,7 @@ import * as TaskManager from "expo-task-manager";
 
 import { createMobileDatabase } from "./database";
 import { migrateDatabase } from "./migrations";
-import { notificationDependencies } from "./notifications";
+import { configureNotificationChannel, notificationDependencies } from "./notifications";
 import { handleOfferPush } from "./push";
 
 const BACKGROUND_NOTIFICATION_TASK = "sale-advisor-offer-notification";
@@ -21,6 +21,8 @@ if (!TaskManager.isTaskDefined(BACKGROUND_NOTIFICATION_TASK))
         const sqlite = await openDatabaseAsync("sale-advisor.db");
         await migrateDatabase(sqlite);
         const local = createMobileDatabase(sqlite);
+        // The app may never have been opened after install; the channel must exist first.
+        await configureNotificationChannel();
         const result = await handleOfferPush(payload, notificationDependencies(sqlite));
         if (result !== "invalid") {
           const installationId = await local.ensureInstallation();

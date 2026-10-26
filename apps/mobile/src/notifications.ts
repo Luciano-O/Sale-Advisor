@@ -30,15 +30,17 @@ export function notificationDependencies(database: SQLiteDatabase) {
           body: `${formatMoney(offer.effectivePriceCents)} em ${offer.store.name}`,
           data: { offerId: offer.id, locallyPresented: true }
         },
-        trigger: null
+        trigger: { channelId: OFFERS_CHANNEL_ID }
       });
     }
   };
 }
 
+const OFFERS_CHANNEL_ID = "offers";
+
 export async function configureNotificationChannel(): Promise<void> {
   if (Platform.OS === "android")
-    await Notifications.setNotificationChannelAsync("offers", {
+    await Notifications.setNotificationChannelAsync(OFFERS_CHANNEL_ID, {
       name: "Ofertas relevantes",
       importance: Notifications.AndroidImportance.HIGH
     });

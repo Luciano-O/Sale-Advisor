@@ -4,22 +4,29 @@ import { StatusBar } from "expo-status-bar";
 import { Suspense, useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 
-import { AppProvider } from "../src/app-context";
+import { AppProvider, useApp } from "../src/app-context";
 import "../src/background-notifications";
 import { migrateDatabase } from "../src/migrations";
 import { subscribeToNotifications } from "../src/notifications";
 import { colors } from "../src/theme";
 
-function Application() {
+function NotificationRouter() {
+  const { track } = useApp();
   useEffect(
     () =>
-      subscribeToNotifications((offerId) =>
-        router.push({ pathname: "/offer/[id]", params: { id: offerId } })
-      ),
-    []
+      subscribeToNotifications((offerId) => {
+        void track("notification_opened", { offerId });
+        router.push({ pathname: "/offer/[id]", params: { id: offerId } });
+      }),
+    [track]
   );
+  return null;
+}
+
+function Application() {
   return (
     <AppProvider>
+      <NotificationRouter />
       <StatusBar style="light" />
       <Stack
         screenOptions={{
