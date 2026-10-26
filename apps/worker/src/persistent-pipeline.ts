@@ -5,6 +5,7 @@ import type { OnApplicationShutdown } from "@nestjs/common";
 import { createDatabase } from "@sale-advisor/database";
 import {
   applyAdminOverrides,
+  DEFAULT_PRICE_SCORING_POLICY,
   buildOfferCandidate,
   extractHttpUrls,
   parseAdminOverrides,
@@ -102,7 +103,12 @@ interface UrlResolutionRow {
 export class PersistentPipelineService implements OnApplicationShutdown {
   private readonly connection = createDatabase();
   private readonly urlResolver: SafeUrlResolver;
-  constructor(private readonly notifications: NotificationProvider) {
+  private readonly offerTtlHours: number;
+  constructor(
+    private readonly notifications: NotificationProvider,
+    options: { offerTtlHours?: number } = {}
+  ) {
+    this.offerTtlHours = options.offerTtlHours ?? DEFAULT_OFFER_TTL_HOURS;
     this.urlResolver = new SafeUrlResolver({
       cache: {
         get: async (hash) => {
@@ -258,7 +264,8 @@ export class PersistentPipelineService implements OnApplicationShutdown {
         `;
         await refreshOfferMentions(
           sql,
-          retired.map(({ offerId }) => offerId)
+          retired.map(({ offerId }) => offerId),
+          this.offerTtlHours
         );
       }
     });
@@ -382,28 +389,52 @@ export class PersistentPipelineService implements OnApplicationShutdown {
           where id = ${offerId}
         `;
       }
-      await refreshOfferMentions(sql, [...priorOffers.map((item) => item.offerId), offerId]);
+      await refreshOfferMentions(
+        sql,
+        [...priorOffers.map((item) => item.offerId), offerId],
+        this.offerTtlHours
+      );
       return offerId;
     });
   }
 
+  /** Expires active offers not mentioned within the TTL; their price history is kept. */
+  async expireStaleOffers(now: Date = new Date()): Promise<number> {
+    const expired = await this.connection.client<{ id: string }[]>`
+      update offers set status = 'expired', expires_at = ${now}, updated_at = now()
+      where status = 'active'
+        and last_seen_at < ${now}::timestamptz - make_interval(hours => ${this.offerTtlHours})
+      returning id
+    `;
+    return expired.length;
+  }
+
   async scoreAffected(rawMessageId: string): Promise<void> {
-    const origins = await this.connection.client<{ productId: string; observedAt: Date }[]>`
-      select o.product_id as "productId", ps.observed_at as "observedAt" from price_snapshots ps
+    const origins = await this.connection.client<
+      { offerId: string; productId: string; observedAt: Date }[]
+    >`
+      select ps.offer_id as "offerId", o.product_id as "productId", ps.observed_at as "observedAt"
+      from price_snapshots ps
       join offers o on o.id = ps.offer_id where ps.raw_message_id = ${rawMessageId} and ps.active
       order by ps.observed_at desc limit 1
     `;
     const origin = origins[0];
     if (!origin) return;
+    // The mentioned offer is always rescored; later offers of the product gained history.
     const offers = await this.connection.client<PersistentOfferRow[]>`
       select o.*, p.canonical_key, p.vendor, p.model, p.vram_gb, s.domain, s.reliability
       from offers o join products p on p.id = o.product_id join stores s on s.id = o.store_id
-      where o.product_id = ${origin.productId} and o.first_seen_at between ${origin.observedAt} and ${origin.observedAt} + interval '90 days'
+      where o.product_id = ${origin.productId}
+        and (o.id = ${origin.offerId}
+          or o.first_seen_at between ${origin.observedAt} and ${origin.observedAt} + interval '90 days')
       order by o.first_seen_at
     `;
+    // Snapshots carry the canonical key, the same product id the scored offers use.
     const snapshots = await this.connection.client<PersistentSnapshotRow[]>`
-      select ps.offer_id, o.product_id, ps.observed_at, ps.amount_in_cents, s.domain, o.store_product_id, o.mention_count
+      select ps.offer_id, p.canonical_key as product_id, ps.observed_at, ps.amount_in_cents, s.domain,
+        o.store_product_id, o.mention_count
       from price_snapshots ps join offers o on o.id = ps.offer_id join stores s on s.id = o.store_id
+      join products p on p.id = o.product_id
       where o.product_id = ${origin.productId} and ps.active
     `;
     const domainSnapshots: PriceSnapshot[] = snapshots.map((row) => ({
@@ -429,8 +460,8 @@ export class PersistentPipelineService implements OnApplicationShutdown {
         .digest("hex");
       await this.connection.client`
         insert into offer_scores (offer_id, policy_version, label, quality_score, confidence, input_hash, metrics, reasons, history_cutoff_at)
-        values (${offer.id}, 'offline-price-history-v1', ${scored.label}, ${scored.qualityScore}, ${scored.confidence}, ${inputHash},
-          ${this.connection.client.json(JSON.parse(JSON.stringify(scored.metrics)))}, ${this.connection.client.json(scored.reasons)}, ${offer.firstSeenAt})
+        values (${offer.id}, ${DEFAULT_PRICE_SCORING_POLICY.version}, ${scored.label}, ${scored.qualityScore}, ${scored.confidence}, ${inputHash},
+          ${this.connection.client.json(JSON.parse(JSON.stringify(scored.metrics)))}, ${this.connection.client.json(scored.reasons)}, ${scored.audit.scoredAt})
         on conflict (offer_id, policy_version, input_hash) do nothing
       `;
     }
@@ -552,18 +583,30 @@ function errorName(error: unknown) {
 // Only the tagged-template call is needed, so both pools and transactions fit.
 type Transaction = (strings: TemplateStringsArray, ...values: string[]) => PromiseLike<unknown>;
 
-/** Recounts active mentions; an offer left without active mentions expires. */
-async function refreshOfferMentions(sql: Transaction, offerIds: string[]): Promise<void> {
+const DEFAULT_OFFER_TTL_HOURS = 72;
+
+/**
+ * Recounts active mentions. An offer stays active only while it has active mentions and was
+ * mentioned within the TTL, so reprocessing old messages never revives a stale offer.
+ */
+async function refreshOfferMentions(
+  sql: Transaction,
+  offerIds: string[],
+  offerTtlHours: number
+): Promise<void> {
+  const ttlHours = String(offerTtlHours);
   for (const offerId of new Set(offerIds)) {
     await sql`
       update offers set
         mention_count = (select count(*)::int from offer_mentions where offer_id = ${offerId} and active),
         status = case
-          when exists (select 1 from offer_mentions where offer_id = ${offerId} and active) then 'active'::offer_status
+          when exists (select 1 from offer_mentions where offer_id = ${offerId} and active)
+            and last_seen_at >= now() - make_interval(hours => ${ttlHours}::int) then 'active'::offer_status
           else 'expired'::offer_status
         end,
         expires_at = case
-          when exists (select 1 from offer_mentions where offer_id = ${offerId} and active) then null
+          when exists (select 1 from offer_mentions where offer_id = ${offerId} and active)
+            and last_seen_at >= now() - make_interval(hours => ${ttlHours}::int) then null
           else coalesce(expires_at, now())
         end,
         updated_at = now()

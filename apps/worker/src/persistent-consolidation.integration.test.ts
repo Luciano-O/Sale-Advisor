@@ -9,6 +9,8 @@ import { PersistentPipelineService } from "./persistent-pipeline.js";
 const integration = process.env.RUN_PIPELINE_INTEGRATION === "true";
 // Far from real data so the 48-hour deduplication window only sees this test's offers.
 const CAPTURED_AT = "2020-01-15T12:00:00.000Z";
+// The past capture date must not expire the offer before the second mention joins it.
+const NO_EXPIRY_HOURS = 24 * 365 * 100;
 
 describe.runIf(integration)("persistent offer consolidation", () => {
   let database: ReturnType<typeof createDatabase>;
@@ -20,7 +22,9 @@ describe.runIf(integration)("persistent offer consolidation", () => {
 
   beforeAll(async () => {
     database = createDatabase();
-    pipeline = new PersistentPipelineService(new FakeNotificationProvider());
+    pipeline = new PersistentPipelineService(new FakeNotificationProvider(), {
+      offerTtlHours: NO_EXPIRY_HOURS
+    });
     await database.client`
       insert into sources (id, name, kind) values (${sourceId}, 'integration-consolidation', 'manual')
     `;

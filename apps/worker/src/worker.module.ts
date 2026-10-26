@@ -3,6 +3,7 @@ import { BullModule } from "@nestjs/bullmq";
 import { readWorkerConfig } from "@sale-advisor/config";
 
 import { createNotificationProvider, NOTIFICATION_PROVIDER } from "./notification.js";
+import { OfferExpiryScheduler } from "./offer-expiry-scheduler.js";
 import { OutboxDispatcher } from "./outbox-dispatcher.js";
 import { PersistentPipelineService } from "./persistent-pipeline.js";
 import {
@@ -46,7 +47,7 @@ function redisConnection() {
       provide: PersistentPipelineService,
       inject: [NOTIFICATION_PROVIDER],
       useFactory: (provider: ReturnType<typeof createNotificationProvider>) =>
-        new PersistentPipelineService(provider)
+        new PersistentPipelineService(provider, { offerTtlHours: runtimeConfig.offerTtlHours })
     },
     PostgresTelegramIngestRepository,
     {
@@ -58,6 +59,7 @@ function redisConnection() {
     TelegramCollectorLifecycle,
     TelegramIngestProcessor,
     OutboxDispatcher,
+    OfferExpiryScheduler,
     ResolveUrlProcessor,
     ParseProcessor,
     ConsolidateProcessor,
