@@ -186,6 +186,17 @@ describe("MVP API", () => {
       .expect(200);
   });
 
+  it("lists each GPU model seen in offers once for the preferences screen", async () => {
+    for (let index = 0; index < 3; index += 1) context.repository.publishOffer({ index });
+
+    await request(context.app.getHttpServer())
+      .get("/v1/catalog")
+      .expect(200)
+      .expect(({ body }) =>
+        expect(body).toEqual({ items: [{ category: "GPU", vendor: "NVIDIA", model: "RTX 4060" }] })
+      );
+  });
+
   it("rejects a malformed feed cursor as a bad request", async () => {
     for (const cursor of ["not-a-cursor", Buffer.from('{"rank":"x"}').toString("base64url")])
       await request(context.app.getHttpServer()).get("/v1/offers").query({ cursor }).expect(400);

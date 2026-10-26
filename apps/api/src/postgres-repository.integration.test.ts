@@ -90,6 +90,17 @@ describe.runIf(integration)("PostgresApiRepository", () => {
     expect(paged.filter((id) => offerIds.includes(id))).toHaveLength(OFFERS.length);
   });
 
+  it("lists each model with offers once in the catalog", async () => {
+    const catalog = await repository.listCatalog();
+
+    expect(catalog.filter(({ model }) => model === "Integration Feed GPU")).toEqual([
+      { category: "GPU", vendor: "NVIDIA", model: "Integration Feed GPU" }
+    ]);
+    expect(new Set(catalog.map(({ vendor, model }) => `${vendor}|${model}`)).size).toBe(
+      catalog.length
+    );
+  });
+
   it("stores no event of a batch that mentions an unregistered installation", async () => {
     const known = randomUUID();
     const result = await repository.addEvents([
