@@ -1,18 +1,56 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from "react-native";
 
+import { fetchOffer } from "../../src/api";
 import { useApp } from "../../src/app-context";
 import { colors, commonStyles, formatMoney } from "../../src/theme";
+import type { MobileOffer } from "../../src/types";
 
 export default function OfferDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { offers, hideOffer, track } = useApp();
-  const offer = offers.find((item) => item.id === id);
+  const listed = offers.find((item) => item.id === id);
+  // A pushed offer may not be on the loaded feed pages yet.
+  const [fetched, setFetched] = useState<MobileOffer | null>(null);
+  const [fetching, setFetching] = useState(false);
+  const offer = listed ?? fetched;
 
   useEffect(() => {
     if (id) void track("offer_viewed", { offerId: id });
   }, [id, track]);
+
+  useEffect(() => {
+    if (!id || listed) return;
+    let active = true;
+    setFetching(true);
+    fetchOffer(id)
+      .then((value) => {
+        if (active) setFetched(value);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setFetching(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id, listed]);
+
+  if (!offer && fetching)
+    return (
+      <View style={[commonStyles.screen, commonStyles.content]}>
+        <ActivityIndicator color={colors.accent} />
+      </View>
+    );
 
   if (!offer)
     return (

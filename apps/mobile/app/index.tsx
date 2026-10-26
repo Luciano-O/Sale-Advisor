@@ -30,7 +30,18 @@ function OfferCard({ offer }: { offer: MobileOffer }) {
 }
 
 export default function FeedScreen() {
-  const { offers, loading, offline, feedSource, error, lastUpdated, refresh } = useApp();
+  const {
+    offers,
+    loading,
+    offline,
+    feedSource,
+    error,
+    lastUpdated,
+    hasMore,
+    loadingMore,
+    refresh,
+    loadMore
+  } = useApp();
   return (
     <View style={commonStyles.screen}>
       <FlatList
@@ -39,6 +50,13 @@ export default function FeedScreen() {
         contentContainerStyle={commonStyles.content}
         refreshing={loading}
         onRefresh={() => void refresh()}
+        onEndReached={() => {
+          if (hasMore) void loadMore();
+        }}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loadingMore ? <ActivityIndicator color={colors.accent} style={styles.footer} /> : null
+        }
         ListHeaderComponent={
           <View style={styles.header}>
             <View style={styles.row}>
@@ -95,6 +113,7 @@ export default function FeedScreen() {
 
 const styles = StyleSheet.create({
   header: { gap: 12, marginBottom: 8, paddingTop: 26 },
+  footer: { paddingVertical: 16 },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   preferenceButton: {
     borderColor: colors.border,
