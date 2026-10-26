@@ -10,6 +10,8 @@ build/
 .expo/
 /apps/mobile/android/
 /apps/mobile/ios/
+# Firebase client config for local native builds; cloud builds use an EAS file variable.
+/apps/mobile/google-services.json
 coverage/
 playwright-report/
 test-results/
