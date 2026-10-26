@@ -12,7 +12,7 @@ import {
 } from "react";
 
 import {
-  fetchOffers,
+  fetchOfferPage,
   registerInstallation,
   sendEvents,
   updateBroadPreferences,
@@ -21,6 +21,7 @@ import {
 import { loadFeed, type FeedSource } from "./cache";
 import { createMobileDatabase } from "./database";
 import { flushPendingEvents } from "./events";
+import { appendOfferPage } from "./feed";
 import { filterOffers } from "./filters";
 import { configureNotificationChannel, requestNativePushToken } from "./notifications";
 import { STARTER_OFFERS } from "./starter-offers";
@@ -40,7 +41,10 @@ interface AppState {
   feedSource: FeedSource;
   error: string | null;
   lastUpdated: string | null;
+  hasMore: boolean;
+  loadingMore: boolean;
   refresh(): Promise<void>;
+  loadMore(): Promise<void>;
   savePreferences(value: LocalPreferences): Promise<void>;
   hideOffer(id: string): Promise<void>;
   track(
@@ -64,6 +68,10 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [feedSource, setFeedSource] = useState<FeedSource>("network");
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const nextCursorRef = useRef<string | null>(null);
+  const loadingMoreRef = useRef(false);
 
   const track = useCallback(
     async (
@@ -88,7 +96,17 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const result = await loadFeed(database.offerCache, fetchOffers, STARTER_OFFERS);
+    nextCursorRef.current = null;
+    const result = await loadFeed(
+      database.offerCache,
+      async () => {
+        const page = await fetchOfferPage(null);
+        nextCursorRef.current = page.nextCursor;
+        return page.offers;
+      },
+      STARTER_OFFERS
+    );
+    setHasMore(result.source === "network" && nextCursorRef.current !== null);
     setAllOffers(result.offers);
     setOffline(result.source === "cache");
     setFeedSource(result.source);
@@ -97,6 +115,28 @@ export function AppProvider({ children }: PropsWithChildren) {
     setLoading(false);
     await track("feed_refreshed", { source: result.source });
   }, [database.offerCache, track]);
+
+  const loadMore = useCallback(async () => {
+    const cursor = nextCursorRef.current;
+    if (!cursor || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const page = await fetchOfferPage(cursor);
+      nextCursorRef.current = page.nextCursor;
+      setHasMore(page.nextCursor !== null);
+      setAllOffers((current) => {
+        const merged = appendOfferPage(current, page.offers);
+        void database.offerCache.replace(merged);
+        return merged;
+      });
+    } catch {
+      // The current list stays usable; reaching the end of the list retries.
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [database.offerCache]);
 
   useEffect(() => {
     let active = true;
@@ -165,7 +205,10 @@ export function AppProvider({ children }: PropsWithChildren) {
       feedSource,
       error,
       lastUpdated,
+      hasMore,
+      loadingMore,
       refresh,
+      loadMore,
       savePreferences: save,
       hideOffer,
       track
@@ -180,7 +223,10 @@ export function AppProvider({ children }: PropsWithChildren) {
       feedSource,
       error,
       lastUpdated,
+      hasMore,
+      loadingMore,
       refresh,
+      loadMore,
       save,
       hideOffer,
       track

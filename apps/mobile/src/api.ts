@@ -1,3 +1,4 @@
+import { offersPath } from "./feed";
 import type { MobileOffer, PendingEvent, ScoreLabel } from "./types";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://10.0.2.2:3000";
@@ -47,9 +48,23 @@ function mapOffer(offer: PublicOfferResponse): MobileOffer {
   };
 }
 
-export async function fetchOffers(): Promise<MobileOffer[]> {
-  const response = await request<{ items: PublicOfferResponse[] }>("/v1/offers?limit=50");
-  return response.items.map(mapOffer);
+export async function fetchOfferPage(
+  cursor: string | null
+): Promise<{ offers: MobileOffer[]; nextCursor: string | null }> {
+  const response = await request<{ items: PublicOfferResponse[]; nextCursor: string | null }>(
+    offersPath(cursor)
+  );
+  return { offers: response.items.map(mapOffer), nextCursor: response.nextCursor };
+}
+
+export interface CatalogModel {
+  vendor: string;
+  model: string;
+}
+
+export async function fetchCatalog(): Promise<CatalogModel[]> {
+  const response = await request<{ items: CatalogModel[] }>("/v1/catalog");
+  return response.items;
 }
 
 export async function fetchOffer(id: string): Promise<MobileOffer> {
