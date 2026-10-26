@@ -1,0 +1,12 @@
+# Real push notifications through Firebase Cloud Messaging (Phase 5). Add after compose.vps.yaml:
+#   -f infra/compose.production.yaml -f infra/compose.vps.yaml -f infra/compose.fcm.yaml
+# The worker runs as the "node" user (uid 1000): the host file must be readable by that uid,
+# for example `chown root:1000 <file> && chmod 640 <file>`.
+
+services:
+  worker:
+    environment:
+      NOTIFICATION_PROVIDER: fcm
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-service-account.json
+    volumes:
+      - ${FIREBASE_CREDENTIALS_FILE:?FIREBASE_CREDENTIALS_FILE is required}:/run/secrets/firebase-service-account.json:ro

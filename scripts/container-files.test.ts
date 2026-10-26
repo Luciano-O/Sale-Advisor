@@ -125,6 +125,19 @@ describe("single-host VPS deployment", () => {
     expect(backup).toContain("86400");
   });
 
+  it("enables FCM only through a separate override that mounts the credential read-only", () => {
+    const fcm = read("infra/compose.fcm.yaml");
+    expect(fcm).toContain("NOTIFICATION_PROVIDER: fcm");
+    expect(fcm).toContain(
+      "GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-service-account.json"
+    );
+    expect(fcm).toContain(
+      "${FIREBASE_CREDENTIALS_FILE:?FIREBASE_CREDENTIALS_FILE is required}:/run/secrets/firebase-service-account.json:ro"
+    );
+    expect(compose()).not.toContain("FIREBASE");
+    expect(read(".env.vps.example")).toMatch(/^# FIREBASE_CREDENTIALS_FILE=/m);
+  });
+
   it("documents the VPS environment without real secrets", () => {
     const example = read(".env.vps.example");
     for (const name of [

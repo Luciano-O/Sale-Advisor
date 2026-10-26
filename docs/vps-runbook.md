@@ -179,6 +179,28 @@ publicadas durante a parada também devem aparecer.
 
 **Traga para validação:** essa saída logo após ativar e de novo 48 horas depois.
 
+## 8a. Push real (Firebase Cloud Messaging)
+
+A chave de serviço do Firebase é um segredo: copie-a por `scp`, nunca por chat ou Git.
+
+```bash
+mkdir -p /opt/sale-advisor/secrets
+# na sua máquina: scp <chave>.json root@<ip-da-vps>:/opt/sale-advisor/secrets/firebase-service-account.json
+chown root:1000 /opt/sale-advisor/secrets/firebase-service-account.json
+chmod 640 /opt/sale-advisor/secrets/firebase-service-account.json
+```
+
+O worker roda como o usuário `node` (uid 1000), por isso o grupo 1000. Defina
+`FIREBASE_CREDENTIALS_FILE=/opt/sale-advisor/secrets/firebase-service-account.json` no `.env.vps`
+e passe a incluir `infra/compose.fcm.yaml` no atalho:
+
+```bash
+sa() { docker compose --env-file .env.vps -f infra/compose.production.yaml -f infra/compose.vps.yaml -f infra/compose.fcm.yaml "$@"; }
+sa up -d --wait worker
+```
+
+Para voltar ao provedor `fake`, remova `compose.fcm.yaml` do atalho e recrie o worker.
+
 ## 9. Monitoramento
 
 Cadastre um monitor HTTP gratuito (UptimeRobot, Better Stack ou similar) para
