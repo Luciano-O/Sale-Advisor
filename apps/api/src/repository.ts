@@ -52,6 +52,18 @@ export interface RuntimeHealth {
   outboxPending: number;
 }
 
+/** A feed cursor that was not produced by this API; answered with 400. */
+export class InvalidCursorError extends Error {
+  constructor() {
+    super("invalid_cursor");
+    this.name = "InvalidCursorError";
+  }
+}
+
+/** Event batches are all-or-nothing: an unknown installation rejects the whole batch. */
+export type AddEventsResult =
+  { status: "accepted"; acceptedCount: number } | { status: "unknown_installation" };
+
 export interface ApiRepository {
   readonly kind: string;
   importMessages(request: ImportRequest): Promise<ImportResult>;
@@ -78,7 +90,7 @@ export interface ApiRepository {
       occurredAt: string;
       payload?: Record<string, string | number | boolean | null> | undefined;
     }>
-  ): Promise<number>;
+  ): Promise<AddEventsResult>;
   health(): Promise<RuntimeHealth>;
   adminDashboard(): Promise<Record<string, unknown>>;
   adminIntegrations(): Promise<{ integrations: IntegrationHealth[] }>;
@@ -144,8 +156,9 @@ export class InMemoryApiRepository implements ApiRepository {
           right.id.localeCompare(left.id)
       );
     const offset = input.cursor
-      ? Number.parseInt(Buffer.from(input.cursor, "base64url").toString("utf8"), 10)
+      ? Number(Buffer.from(input.cursor, "base64url").toString("utf8"))
       : 0;
+    if (!Number.isSafeInteger(offset) || offset < 0) throw new InvalidCursorError();
     const items = sorted.slice(offset, offset + input.limit);
     const nextOffset = offset + items.length;
     return {
@@ -180,14 +193,16 @@ export class InMemoryApiRepository implements ApiRepository {
     return true;
   }
 
-  async addEvents(events: Array<{ id: string }>) {
-    let accepted = 0;
+  async addEvents(events: Array<{ id: string; installationId: string }>): Promise<AddEventsResult> {
+    if (events.some((event) => !this.installations.has(event.installationId)))
+      return { status: "unknown_installation" };
+    let acceptedCount = 0;
     for (const event of events)
       if (!this.eventIds.has(event.id)) {
         this.eventIds.add(event.id);
-        accepted += 1;
+        acceptedCount += 1;
       }
-    return accepted;
+    return { status: "accepted", acceptedCount };
   }
 
   async health() {
