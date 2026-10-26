@@ -16,7 +16,7 @@ describe("scoreConsolidatedOffers", () => {
       offer({ id: "history-3", firstSeenAt: "2026-07-03T10:00:00.000Z", amountInCents: 200000 })
     ]);
 
-    expect(result.scoringPolicy.version).toBe("offline-price-history-v1");
+    expect(result.scoringPolicy.version).toBe("offline-price-history-v2");
     expect(result.priceSnapshots.map((snapshot) => snapshot.offerId)).toEqual([
       "history-1",
       "history-2",

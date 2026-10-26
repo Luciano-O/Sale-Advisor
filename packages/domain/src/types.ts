@@ -166,7 +166,7 @@ export interface PriceHistoryMetrics {
 }
 
 export interface PriceScoringPolicy {
-  version: "offline-price-history-v1";
+  version: "offline-price-history-v2";
   windowsDays: {
     lowestPrice7d: number;
     lowestPrice30d: number;

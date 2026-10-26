@@ -11,7 +11,7 @@ import type {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const DEFAULT_PRICE_SCORING_POLICY: PriceScoringPolicy = {
-  version: "offline-price-history-v1",
+  version: "offline-price-history-v2",
   windowsDays: {
     lowestPrice7d: 7,
     lowestPrice30d: 30,
@@ -109,7 +109,7 @@ export function scoreOffer(
     metrics,
     reasons,
     audit: {
-      scoredAt: new Date(offer.firstSeenAt).toISOString(),
+      scoredAt: new Date(scoredAt(offer)).toISOString(),
       comparedSnapshotOfferIds7d: metrics.usedSnapshotOfferIds7d,
       comparedSnapshotOfferIds30d: metrics.usedSnapshotOfferIds30d,
       comparedSnapshotOfferIds90d: metrics.usedSnapshotOfferIds90d
@@ -202,12 +202,17 @@ function classifyOffer(
   return { label, reasons };
 }
 
+// An offer is judged at its latest mention, against the history that existed before it.
+function scoredAt(offer: ConsolidatedOffer): string {
+  return offer.lastSeenAt ?? offer.firstSeenAt;
+}
+
 function selectPreviousSnapshots(
   offer: ConsolidatedOffer,
   snapshots: PriceSnapshot[],
   windowDays: number
 ): PriceSnapshot[] {
-  const scoreTime = Date.parse(offer.firstSeenAt);
+  const scoreTime = Date.parse(scoredAt(offer));
   const windowMs = windowDays * DAY_MS;
 
   return snapshots
