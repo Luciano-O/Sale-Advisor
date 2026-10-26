@@ -19,7 +19,11 @@ import type {
   PriceSnapshot
 } from "@sale-advisor/domain";
 
-import { asNotificationSendError, type NotificationProvider } from "./notification.js";
+import {
+  asNotificationSendError,
+  type NotificationPayload,
+  type NotificationProvider
+} from "./notification.js";
 import { SafeUrlResolver, URL_RESOLVER_VERSION, type UrlResolutionRecord } from "./url-resolver.js";
 
 interface RawRow {
@@ -77,6 +81,13 @@ interface NotificationCandidateRow {
   last_seen_at: Date;
   blocked_at: Date | null;
   label: string;
+  product_id: string;
+  vendor: string;
+  model: string;
+  vram_gb: number | null;
+  store_name: string;
+  store_domain: string;
+  price_cents: number;
 }
 
 interface NotificationTargetRow {
@@ -470,9 +481,11 @@ export class PersistentPipelineService implements OnApplicationShutdown {
   async notify(rawMessageId: string): Promise<void> {
     const rows = await this.connection.client<NotificationCandidateRow[]>`
       select rm.notify_eligible, o.id as offer_id, o.last_seen_at, s.blocked_at,
-        coalesce(sc.label, 'normal') as label
+        coalesce(sc.label, 'normal') as label, p.id as product_id, p.vendor, p.model, p.vram_gb,
+        s.name as store_name, s.domain as store_domain, o.current_price_in_cents as price_cents
       from raw_messages rm join offer_mentions om on om.raw_message_id = rm.id and om.active
       join offers o on o.id = om.offer_id join stores s on s.id = o.store_id
+      join products p on p.id = o.product_id
       left join lateral (select label from offer_scores where offer_id = o.id order by created_at desc limit 1) sc on true
       where rm.id = ${rawMessageId} limit 1
     `;
@@ -489,6 +502,20 @@ export class PersistentPipelineService implements OnApplicationShutdown {
       where d.push_enabled or ${this.notifications.name} = 'fake'
     `;
     const rank: Record<string, number> = { normal: 0, boa: 1, muito_boa: 2, excepcional: 3 };
+    // The app filters and shows the offer from this summary without fetching it.
+    const payload: NotificationPayload = {
+      offerId: row.offer_id,
+      summary: {
+        productId: row.product_id,
+        vendor: row.vendor,
+        model: row.model,
+        vramGb: row.vram_gb,
+        storeName: row.store_name,
+        storeDomain: row.store_domain,
+        priceCents: row.price_cents,
+        label: row.label
+      }
+    };
     let retryableFailure: Error | null = null;
     for (const target of targets) {
       if ((rank[row.label] ?? 0) < (rank[target.minimum_label] ?? 1)) continue;
@@ -497,7 +524,7 @@ export class PersistentPipelineService implements OnApplicationShutdown {
           installation_id, offer_id, provider, status, payload, attempts, attempted_at
         ) values (
           ${target.id}, ${row.offer_id}, ${this.notifications.name}, 'pending',
-          ${this.connection.client.json({ offerId: row.offer_id })}, 1, now()
+          ${this.connection.client.json(JSON.parse(JSON.stringify(payload)))}, 1, now()
         )
         on conflict (installation_id, offer_id) do update set
           provider = excluded.provider,
@@ -518,7 +545,7 @@ export class PersistentPipelineService implements OnApplicationShutdown {
       try {
         await this.notifications.send(
           { installationId: target.id, token: target.push_target },
-          { offerId: row.offer_id }
+          payload
         );
         await this.connection
           .client`update notification_deliveries set status = 'sent' where id = ${deliveryId}`;

@@ -1,5 +1,33 @@
+/** What the app needs to filter and show an offer without fetching it. */
+export interface OfferNotificationSummary {
+  productId: string;
+  vendor: string;
+  model: string;
+  vramGb: number | null;
+  storeName: string;
+  storeDomain: string;
+  priceCents: number;
+  label: string;
+}
+
 export interface NotificationPayload {
   offerId: string;
+  summary?: OfferNotificationSummary;
+}
+
+// An offer still undelivered after a day is no longer worth a notification.
+const FCM_TTL_MS = 24 * 60 * 60 * 1_000;
+
+/** FCM data payloads only carry strings; the summary travels as JSON. */
+export function buildFcmMessage(token: string, payload: NotificationPayload) {
+  return {
+    token,
+    data: {
+      offerId: payload.offerId,
+      ...(payload.summary ? { offer: JSON.stringify(payload.summary) } : {})
+    },
+    android: { priority: "high" as const, ttl: FCM_TTL_MS }
+  };
 }
 export interface NotificationTarget {
   installationId: string;
@@ -54,11 +82,7 @@ export class FcmNotificationProvider implements NotificationProvider {
       const { getApps, initializeApp, applicationDefault } = await import("firebase-admin/app");
       const { getMessaging } = await import("firebase-admin/messaging");
       if (getApps().length === 0) initializeApp({ credential: applicationDefault() });
-      await getMessaging().send({
-        token: target.token,
-        data: { offerId: payload.offerId },
-        android: { priority: "high" }
-      });
+      await getMessaging().send(buildFcmMessage(target.token, payload));
     } catch (error) {
       throw asNotificationSendError(error);
     }
