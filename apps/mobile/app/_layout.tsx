@@ -5,7 +5,6 @@ import { Suspense, useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import { AppProvider, useApp } from "../src/app-context";
-import "../src/background-notifications";
 import { migrateDatabase } from "../src/migrations";
 import { subscribeToNotifications } from "../src/notifications";
 import { colors } from "../src/theme";

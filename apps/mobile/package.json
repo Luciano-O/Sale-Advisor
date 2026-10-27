@@ -2,7 +2,7 @@
   "name": "@sale-advisor/mobile",
   "version": "0.2.0",
   "private": true,
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "scripts": {
     "build": "expo export --platform android --output-dir dist/android",
     "dev": "expo start --dev-client",
