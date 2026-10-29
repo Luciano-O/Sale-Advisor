@@ -40,7 +40,7 @@ A classificação vem do histórico de preços do produto canônico (mínima de 
   - Depois, para cada subcategoria, o usuário escolhe entre "subcategoria inteira" e "produtos específicos". Os produtos são sempre escolhidos numa lista do catálogo por busca rápida, nunca por texto livre.
   - Seguir uma categoria ou subcategoria inteira significa receber todas as ofertas `boa`, `muito_boa` e `excepcional` dela, de qualquer produto.
   - O limiar de alerta é decidido pelo sistema e fica fixo em `boa`. O usuário não ajusta nível em nenhuma tela.
-- O feed e o detalhe da oferta mostram a mediana de 30 dias, a mínima de 90 dias e a nota de 0 a 100. A API pública hoje expõe só a menor observada (`lowestPriceCents`), então mediana e mínima de 90 dias precisam entrar no contrato.
+- O feed e o detalhe da oferta mostram a mediana de 30 dias, a mínima de 90 dias e a nota de 0 a 100. A API pública os expõe em `history` (`median30dInCents`, `lowest90dInCents`, `discountVsMedianPercent`).
 - Uma oferta é "válida" enquanto foi divulgada nas últimas 72 h (`OFFER_TTL_HOURS`). Quem abre um push antigo precisa ver o estado "expirada".
 - Hoje o catálogo (`/v1/catalog`) cobre só GPUs. As outras subcategorias precisam de catálogo próprio antes de ficarem ativas. **Decidido em 2026-10-29:** o "nível mínimo" sai do app, inclusive dos Ajustes. O código atual ainda guarda `minimumLabel` e o envia à API; ele passa a ser fixo em `boa`.
 - Catálogo: categoria hardware, com GPUs como única categoria ativa no MVP. O layout precisa comportar outras categorias de hardware (CPU, SSD etc.) sem redesenho.
@@ -53,7 +53,7 @@ A classificação vem do histórico de preços do produto canônico (mínima de 
   - As ações são "Abrir na loja", que abre o app já indo para o link, e "Ocultar", que tira a oferta da lista sem abrir o app. Tocar abre o detalhe, ou o detalhe "expirada" depois de 72 h.
   - O ícone pequeno é o símbolo de três barras, monocromático, com cobalto como cor de destaque em todos os rótulos.
   - Não há emoji, caixa alta nem pressa ("corra", "últimas unidades"), e alertas atrasados mais de 24 h são descartados.
-  - O resumo do push (`OfferNotificationSummary`) hoje leva só produto, loja, preço e rótulo. Ele precisa ganhar o desconto contra a mediana de 30 dias, a diferença para a mínima de 90 dias e o cupom.
+  - O resumo do push (`OfferNotificationSummary`) leva produto, loja, preço e rótulo, mais o desconto contra a mediana de 30 dias, a mediana, a mínima de 90 dias, o cupom e o link da loja (omitido se o payload passar de 4 KB).
 - Métricas anônimas por instalação, sem email, telefone ou identificadores pessoais.
 
 ## Brand Commitments

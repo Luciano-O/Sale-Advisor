@@ -9,7 +9,8 @@ import {
   EventsController,
   HealthController,
   InstallationsController,
-  OffersController
+  OffersController,
+  StoresController
 } from "./controllers.js";
 import { ADMIN_API_KEY, API_REPOSITORY, type ApiRepository } from "./repository.js";
 import {
@@ -38,6 +39,7 @@ export class ApiModule {
         AdminController,
         OffersController,
         CatalogController,
+        StoresController,
         InstallationsController,
         EventsController
       ],
