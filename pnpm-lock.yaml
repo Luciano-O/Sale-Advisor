@@ -228,6 +228,9 @@ importers:
       '@sale-advisor/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@sale-advisor/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@sale-advisor/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -3341,6 +3344,7 @@ packages:
   eslint@9.39.5:
     resolution: {integrity: sha512-DgZS62aPLXKlnxILS/AYCoRvHaZeXceIzlXPkkGGzJWSow1aEk0lbTlxUSlyjC8jcaKxAdOnTDz+o1JFSBsyjw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'

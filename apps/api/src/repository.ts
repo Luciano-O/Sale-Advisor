@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import type { ImportMessage } from "@sale-advisor/contracts";
+import type { ImportMessage, OfferHistory, OfferSort } from "@sale-advisor/contracts";
 
 export const API_REPOSITORY = Symbol("API_REPOSITORY");
 export const ADMIN_API_KEY = Symbol("ADMIN_API_KEY");
@@ -28,7 +28,16 @@ export interface PublicOffer {
   firstSeenAt: string;
   lastSeenAt: string;
   mentionCount: number;
+  /** The feed lists only active offers; the detail also opens expired ones. */
+  status: "active" | "expired";
+  history: OfferHistory;
   score: { label: string; qualityScore: number; confidence: string; reasons: string[] };
+}
+
+/** A store the app can block, picked from a list instead of typed. */
+export interface PublicStore {
+  name: string;
+  domain: string;
 }
 
 export interface IntegrationHealth {
@@ -75,10 +84,13 @@ export interface ApiRepository {
   importMessages(request: ImportRequest): Promise<ImportResult>;
   listOffers(input: {
     limit: number;
+    sort?: OfferSort | undefined;
     cursor?: string | undefined;
     minimumLabel?: string | undefined;
   }): Promise<{ items: PublicOffer[]; nextCursor: string | null }>;
+  /** Also finds expired offers, so an old notification still opens; never blocked stores. */
   findOffer(id: string): Promise<PublicOffer | null>;
+  listStores(): Promise<PublicStore[]>;
   /** Distinct GPU models seen in offers, for choosing followed models in the app. */
   listCatalog(): Promise<CatalogModel[]>;
   upsertInstallation(input: { id: string; platform: string; appVersion: string }): Promise<void>;
@@ -149,35 +161,55 @@ export class InMemoryApiRepository implements ApiRepository {
 
   async listOffers(input: {
     limit: number;
+    sort?: OfferSort | undefined;
     cursor?: string | undefined;
     minimumLabel?: string | undefined;
   }) {
+    const sort = input.sort ?? "recent";
     const labelRank: Record<string, number> = { normal: 0, boa: 1, muito_boa: 2, excepcional: 3 };
     const minimum = input.minimumLabel ? (labelRank[input.minimumLabel] ?? 0) : 0;
-    const sorted = [...this.offers]
-      .filter((offer) => (labelRank[offer.score.label] ?? 0) >= minimum)
+    const discount = (offer: PublicOffer) =>
+      offer.history.discountVsMedianPercent ?? Number.NEGATIVE_INFINITY;
+    const sorted = this.offers
+      .filter(
+        (offer) => offer.status === "active" && (labelRank[offer.score.label] ?? 0) >= minimum
+      )
       .sort(
         (left, right) =>
-          (labelRank[right.score.label] ?? 0) - (labelRank[left.score.label] ?? 0) ||
-          right.score.qualityScore - left.score.qualityScore ||
+          (sort === "discount" ? discount(right) - discount(left) || 0 : 0) ||
           right.firstSeenAt.localeCompare(left.firstSeenAt) ||
           right.id.localeCompare(left.id)
       );
-    const offset = input.cursor
-      ? Number(Buffer.from(input.cursor, "base64url").toString("utf8"))
-      : 0;
-    if (!Number.isSafeInteger(offset) || offset < 0) throw new InvalidCursorError();
+    // The cursor names its ordering, so a page of one ordering never continues the other.
+    const [cursorSort, rawOffset] = input.cursor
+      ? Buffer.from(input.cursor, "base64url").toString("utf8").split(":")
+      : [sort, "0"];
+    const offset = Number(rawOffset);
+    if (cursorSort !== sort || !Number.isSafeInteger(offset) || offset < 0)
+      throw new InvalidCursorError();
     const items = sorted.slice(offset, offset + input.limit);
     const nextOffset = offset + items.length;
     return {
       items,
       nextCursor:
-        nextOffset < sorted.length ? Buffer.from(String(nextOffset)).toString("base64url") : null
+        nextOffset < sorted.length
+          ? Buffer.from(`${sort}:${nextOffset}`).toString("base64url")
+          : null
     };
   }
 
   async findOffer(id: string) {
     return this.offers.find((offer) => offer.id === id) ?? null;
+  }
+
+  async listStores(): Promise<PublicStore[]> {
+    const stores = new Map<string, PublicStore>();
+    for (const { store } of this.offers)
+      stores.set(store.domain, { name: store.name, domain: store.domain });
+    return [...stores.values()].sort(
+      (left, right) =>
+        left.name.localeCompare(right.name) || left.domain.localeCompare(right.domain)
+    );
   }
 
   async listCatalog(): Promise<CatalogModel[]> {
@@ -290,7 +322,17 @@ export class InMemoryApiRepository implements ApiRepository {
     return { found: true, auditId: event.id };
   }
 
-  publishOffer({ index }: { index: number }) {
+  publishOffer({
+    index,
+    status = "active",
+    discountVsMedianPercent = 5,
+    store = { name: "Shop", domain: "shop.example" }
+  }: {
+    index: number;
+    status?: PublicOffer["status"];
+    discountVsMedianPercent?: number | null;
+    store?: PublicStore;
+  }) {
     const id = `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`;
     this.offers.push({
       id,
@@ -300,7 +342,7 @@ export class InMemoryApiRepository implements ApiRepository {
         model: "RTX 4060",
         vramGb: 8
       },
-      store: { name: "Shop", domain: "shop.example", reliability: 80 },
+      store: { ...store, reliability: 80 },
       priceInCents: 189900 - index * 1000,
       lowestPriceInCents: 189900 - index * 1000,
       coupon: null,
@@ -309,6 +351,11 @@ export class InMemoryApiRepository implements ApiRepository {
       firstSeenAt: `2026-07-1${index + 1}T12:00:00.000Z`,
       lastSeenAt: `2026-07-1${index + 1}T12:00:00.000Z`,
       mentionCount: index + 1,
+      status,
+      history:
+        discountVsMedianPercent === null
+          ? { median30dInCents: null, lowest90dInCents: null, discountVsMedianPercent: null }
+          : { median30dInCents: 200000, lowest90dInCents: 185000, discountVsMedianPercent },
       score: {
         label: index === 2 ? "excepcional" : "boa",
         qualityScore: 70 + index,
