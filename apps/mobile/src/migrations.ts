@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 export interface MigrationDatabase {
   execAsync(sql: string): Promise<unknown>;
@@ -40,6 +40,16 @@ CREATE TABLE IF NOT EXISTS shown_notifications (
 PRAGMA user_version = 1;
 COMMIT;`;
 
+const LOCAL_STATE_AND_HIDDEN_SNAPSHOTS = `
+BEGIN;
+CREATE TABLE IF NOT EXISTS app_state (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+ALTER TABLE hidden_offers ADD COLUMN payload TEXT;
+PRAGMA user_version = 2;
+COMMIT;`;
+
 export async function migrateDatabase(database: MigrationDatabase): Promise<void> {
   await database.execAsync("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
   const row = await database.getFirstAsync<{ user_version: number }>("PRAGMA user_version");
@@ -47,4 +57,5 @@ export async function migrateDatabase(database: MigrationDatabase): Promise<void
   if (version > CURRENT_SCHEMA_VERSION)
     throw new Error(`Unsupported local schema version: ${version}`);
   if (version < 1) await database.execAsync(INITIAL_SCHEMA);
+  if (version < 2) await database.execAsync(LOCAL_STATE_AND_HIDDEN_SNAPSHOTS);
 }

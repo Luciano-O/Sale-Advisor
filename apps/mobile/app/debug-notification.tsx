@@ -50,7 +50,7 @@ export default function DevelopmentNotificationRoute() {
 
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-      <ActivityIndicator color={colors.accent} />
+      <ActivityIndicator color={colors.cobalt} />
     </View>
   );
 }

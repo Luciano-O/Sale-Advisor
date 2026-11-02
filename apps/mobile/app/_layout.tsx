@@ -26,17 +26,17 @@ function Application() {
   return (
     <AppProvider>
       <NotificationRouter />
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.text,
-          contentStyle: { backgroundColor: colors.background },
+          headerStyle: { backgroundColor: colors.ground },
+          headerTintColor: colors.ink,
+          contentStyle: { backgroundColor: colors.ground },
           headerShadowVisible: false
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="offer/[id]" options={{ title: "Detalhes da oferta" }} />
+        <Stack.Screen name="offer/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="preferences" options={{ title: "Preferências locais" }} />
         <Stack.Screen name="debug-notification" options={{ headerShown: false }} />
       </Stack>
@@ -56,8 +56,15 @@ export default function RootLayout() {
 
 export function LoadingDatabase() {
   return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-      <ActivityIndicator color={colors.accent} />
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.ground
+      }}
+    >
+      <ActivityIndicator color={colors.cobalt} />
     </View>
   );
 }

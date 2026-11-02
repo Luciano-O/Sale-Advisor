@@ -1,4 +1,5 @@
-import type { LocalPreferences, MobileOffer, ScoreLabel } from "./types";
+import { sortOffers } from "./feed";
+import type { LocalPreferences, MobileOffer, OfferSort, ScoreLabel } from "./types";
 
 const LABEL_RANK: Record<ScoreLabel, number> = {
   normal: 0,
@@ -45,14 +46,11 @@ export function isOfferRelevant(
 export function filterOffers(
   offers: MobileOffer[],
   preferences: LocalPreferences,
-  hiddenIds: ReadonlySet<string>
+  hiddenIds: ReadonlySet<string>,
+  sort: OfferSort
 ): MobileOffer[] {
-  return offers
-    .filter((offer) => isOfferRelevant(offer, preferences, hiddenIds))
-    .sort(
-      (left, right) =>
-        LABEL_RANK[right.label] - LABEL_RANK[left.label] ||
-        right.qualityScore - left.qualityScore ||
-        right.firstSeenAt.localeCompare(left.firstSeenAt)
-    );
+  return sortOffers(
+    offers.filter((offer) => isOfferRelevant(offer, preferences, hiddenIds)),
+    sort
+  );
 }

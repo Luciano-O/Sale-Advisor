@@ -1,5 +1,5 @@
-import { offersPath } from "./feed";
-import type { MobileOffer, PendingEvent, ScoreLabel } from "./types";
+import { EMPTY_HISTORY, offersPath } from "./feed";
+import type { MobileOffer, OfferSort, PendingEvent, ScoreLabel } from "./types";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://10.0.2.2:3000";
 
@@ -15,6 +15,9 @@ interface PublicOfferResponse {
   firstSeenAt: string;
   lastSeenAt: string;
   mentionCount: number;
+  // Optional because a server older than the app does not send them.
+  status?: MobileOffer["status"];
+  history?: MobileOffer["history"];
   score: { label: ScoreLabel; qualityScore: number; reasons: string[] };
 }
 
@@ -44,15 +47,18 @@ function mapOffer(offer: PublicOfferResponse): MobileOffer {
     mentionCount: offer.mentionCount,
     firstSeenAt: offer.firstSeenAt,
     lastSeenAt: offer.lastSeenAt,
+    status: offer.status ?? "active",
+    history: offer.history ?? EMPTY_HISTORY,
     url: offer.url
   };
 }
 
 export async function fetchOfferPage(
-  cursor: string | null
+  cursor: string | null,
+  sort: OfferSort
 ): Promise<{ offers: MobileOffer[]; nextCursor: string | null }> {
   const response = await request<{ items: PublicOfferResponse[]; nextCursor: string | null }>(
-    offersPath(cursor)
+    offersPath(cursor, sort)
   );
   return { offers: response.items.map(mapOffer), nextCursor: response.nextCursor };
 }

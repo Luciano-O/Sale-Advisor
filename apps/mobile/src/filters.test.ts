@@ -15,6 +15,8 @@ const baseOffer: MobileOffer = {
   mentionCount: 2,
   firstSeenAt: "2026-07-14T12:00:00.000Z",
   lastSeenAt: "2026-07-14T12:00:00.000Z",
+  status: "active",
+  history: { median30dInCents: null, lowest90dInCents: null, discountVsMedianPercent: null },
   url: "https://boa.example/gpu"
 };
 
@@ -50,16 +52,26 @@ describe("local offer filters", () => {
     expect(isOfferRelevant(baseOffer, preferences, new Set(["product-1"]))).toBe(false);
   });
 
-  it("sorts relevant offers by label, quality and recency", () => {
+  it("orders relevant offers by what the user chose, not by label", () => {
     const exceptional = {
       ...baseOffer,
       id: "offer-2",
       label: "excepcional" as const,
-      qualityScore: 70
+      firstSeenAt: "2026-07-13T12:00:00.000Z"
     };
-    const stronger = { ...baseOffer, id: "offer-3", qualityScore: 90 };
-    expect(
-      filterOffers([baseOffer, exceptional, stronger], preferences, new Set()).map(({ id }) => id)
-    ).toEqual(["offer-2", "offer-3", "offer-1"]);
+    const biggerDiscount = {
+      ...baseOffer,
+      id: "offer-3",
+      firstSeenAt: "2026-07-12T12:00:00.000Z",
+      history: { ...baseOffer.history, discountVsMedianPercent: 20 }
+    };
+    const offers = [exceptional, biggerDiscount, baseOffer];
+
+    expect(filterOffers(offers, preferences, new Set(), "recent").map(({ id }) => id)).toEqual([
+      "offer-1",
+      "offer-2",
+      "offer-3"
+    ]);
+    expect(filterOffers(offers, preferences, new Set(), "discount")[0]?.id).toBe("offer-3");
   });
 });

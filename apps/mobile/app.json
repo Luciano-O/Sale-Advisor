@@ -5,9 +5,28 @@
     "version": "0.2.0",
     "orientation": "portrait",
     "scheme": "saleadvisor",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "plugins": ["expo-router", "expo-sqlite", "expo-notifications"],
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-notifications",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "../../node_modules/@expo-google-fonts/barlow/400Regular/Barlow_400Regular.ttf",
+            "../../node_modules/@expo-google-fonts/barlow/500Medium/Barlow_500Medium.ttf",
+            "../../node_modules/@expo-google-fonts/barlow/600SemiBold/Barlow_600SemiBold.ttf",
+            "../../node_modules/@expo-google-fonts/barlow/700Bold/Barlow_700Bold.ttf",
+            "../../node_modules/@expo-google-fonts/barlow-condensed/500Medium/BarlowCondensed_500Medium.ttf",
+            "../../node_modules/@expo-google-fonts/barlow-condensed/600SemiBold/BarlowCondensed_600SemiBold.ttf",
+            "../../node_modules/@expo-google-fonts/barlow-condensed/700Bold/BarlowCondensed_700Bold.ttf",
+            "../../node_modules/@expo-google-fonts/barlow-condensed/800ExtraBold/BarlowCondensed_800ExtraBold.ttf"
+          ]
+        }
+      ]
+    ],
     "android": {
       "package": "com.saleadvisor.mobile",
       "permissions": ["POST_NOTIFICATIONS"]
@@ -21,6 +40,7 @@
         "projectId": "bc8bc26f-4913-42b4-934a-cbbda71dd7af"
       }
     },
-    "owner": "luck109"
+    "owner": "luck109",
+    "backgroundColor": "#F1F2F5"
   }
 }
