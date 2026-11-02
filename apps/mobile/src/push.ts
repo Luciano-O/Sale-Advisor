@@ -1,4 +1,3 @@
-import { EMPTY_HISTORY } from "./feed";
 import { isOfferRelevant } from "./filters";
 import type { LocalPreferences, MobileOffer, ScoreLabel } from "./types";
 
@@ -34,6 +33,10 @@ export async function handleOfferPush(
   return "shown";
 }
 
+// Summaries sent before these fields existed simply do not have them.
+const numberOrNull = (value: unknown) => (typeof value === "number" ? value : null);
+const textOrNull = (value: unknown) => (typeof value === "string" ? value : null);
+
 function offerFromSummary(offerId: string, value: unknown): MobileOffer | null {
   if (typeof value !== "string") return null;
   let summary: Record<string, unknown>;
@@ -43,6 +46,7 @@ function offerFromSummary(offerId: string, value: unknown): MobileOffer | null {
     return null;
   }
   const { productId, vendor, model, vramGb, storeName, storeDomain, priceCents, label } = summary;
+  const { discountVsMedianPercent, median30dInCents, lowest90dInCents, coupon, url } = summary;
   if (
     typeof productId !== "string" ||
     typeof vendor !== "string" ||
@@ -61,6 +65,7 @@ function offerFromSummary(offerId: string, value: unknown): MobileOffer | null {
     product: { category: "GPU", vendor, model, vramGb },
     store: { name: storeName, domain: storeDomain },
     effectivePriceCents: priceCents,
+    coupon: textOrNull(coupon),
     label: label as ScoreLabel,
     qualityScore: 0,
     scoreSummary: "",
@@ -68,7 +73,11 @@ function offerFromSummary(offerId: string, value: unknown): MobileOffer | null {
     firstSeenAt: now,
     lastSeenAt: now,
     status: "active",
-    history: EMPTY_HISTORY,
-    url: null
+    history: {
+      median30dInCents: numberOrNull(median30dInCents),
+      lowest90dInCents: numberOrNull(lowest90dInCents),
+      discountVsMedianPercent: numberOrNull(discountVsMedianPercent)
+    },
+    url: textOrNull(url)
   };
 }

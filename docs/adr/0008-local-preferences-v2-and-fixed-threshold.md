@@ -30,6 +30,10 @@ inteira nem todo o hardware.
 - Quem usava um nível mínimo acima de `boa` passa a ver ofertas `boa`.
 - Quem nunca salvou preferências passa pelo onboarding, mesmo com o app já instalado.
 - Quem pular o onboarding segue todo o hardware, com os alertas desligados.
+- "Apagar dados deste aparelho" cria um código novo, e o registro antigo fica órfão no servidor,
+  porque ainda não existe endpoint para apagar uma instalação. Antes de apagar, o app tira o token
+  de push desse registro. Sem conexão nesse momento, o token fica lá, e o que chegar por ele ainda
+  passa pelo filtro do aparelho.
 
 ## Migração e rollback
 

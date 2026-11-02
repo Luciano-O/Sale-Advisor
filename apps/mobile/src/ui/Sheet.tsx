@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -27,7 +27,8 @@ export function Sheet({
       transparent
       visible={visible}
     >
-      <View style={styles.root}>
+      {/* A translucent modal is measured without the system bars, but covers them. */}
+      <View style={[styles.root, { height: Dimensions.get("screen").height }]}>
         <Animated.View entering={FadeIn} style={StyleSheet.absoluteFill}>
           <Pressable
             accessibilityRole="button"
@@ -56,7 +57,7 @@ export function Sheet({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, justifyContent: "flex-end" },
+  root: { justifyContent: "flex-end" },
   veil: { backgroundColor: colors.veil, flex: 1 },
   sheet: {
     ...shadows.sheet,

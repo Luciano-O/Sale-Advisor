@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { flushPendingEvents } from "./events";
+import { flushPendingEvents, recordEvent } from "./events";
 import type { PendingEvent } from "./types";
 
 const events: PendingEvent[] = [
@@ -44,5 +44,25 @@ describe("anonymous event queue", () => {
     ).rejects.toThrow("offline");
     expect(store.markFailed).toHaveBeenCalledWith(["event-1"], "offline");
     expect(store.remove).not.toHaveBeenCalled();
+  });
+});
+
+describe("recordEvent", () => {
+  const event = {
+    installationId: "installation-1",
+    name: "app_opened" as const,
+    occurredAt: "2026-10-29T12:00:00.000Z"
+  };
+
+  it("records while anonymous usage is on", async () => {
+    const store = { enqueueEvent: vi.fn(async () => "id") };
+    await expect(recordEvent(true, store, event)).resolves.toBe(true);
+    expect(store.enqueueEvent).toHaveBeenCalledWith(event);
+  });
+
+  it("records nothing when anonymous usage is off", async () => {
+    const store = { enqueueEvent: vi.fn(async () => "id") };
+    await expect(recordEvent(false, store, event)).resolves.toBe(false);
+    expect(store.enqueueEvent).not.toHaveBeenCalled();
   });
 });

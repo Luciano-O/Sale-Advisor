@@ -82,6 +82,54 @@ describe("data-only push handling", () => {
     );
   });
 
+  it("reads the verdict, coupon and link from the push summary", async () => {
+    const dependencies = summaryDependencies();
+    await handleOfferPush(
+      {
+        offerId: "offer-9",
+        offer: JSON.stringify({
+          ...summary,
+          discountVsMedianPercent: 11,
+          median30dInCents: 472000,
+          lowest90dInCents: 410000,
+          coupon: "PLACA5",
+          url: "https://terabyteshop.com.br/produto/9"
+        })
+      },
+      dependencies
+    );
+
+    expect(dependencies.getOffer).not.toHaveBeenCalled();
+    expect(dependencies.showLocalNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coupon: "PLACA5",
+        url: "https://terabyteshop.com.br/produto/9",
+        history: {
+          discountVsMedianPercent: 11,
+          median30dInCents: 472000,
+          lowest90dInCents: 410000
+        }
+      })
+    );
+  });
+
+  it("reads a summary from before those fields existed", async () => {
+    const dependencies = summaryDependencies();
+    await handleOfferPush({ offerId: "offer-9", offer: JSON.stringify(summary) }, dependencies);
+
+    expect(dependencies.showLocalNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coupon: null,
+        url: null,
+        history: {
+          discountVsMedianPercent: null,
+          median30dInCents: null,
+          lowest90dInCents: null
+        }
+      })
+    );
+  });
+
   it("applies local filters to the push summary", async () => {
     const dependencies = summaryDependencies({
       followAll: false,

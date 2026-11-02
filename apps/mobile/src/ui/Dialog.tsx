@@ -1,7 +1,6 @@
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, fonts, radii, shadows, typography } from "../theme";
-import { Button } from "./Button";
+import { colors, fonts, MIN_TOUCH_TARGET, radii, shadows, typography } from "../theme";
 
 /** Only for destructive actions; the final button is solid ink, never an alert color. */
 export function Dialog({
@@ -30,7 +29,8 @@ export function Dialog({
       transparent
       visible={visible}
     >
-      <View style={styles.root}>
+      {/* A translucent modal is measured without the system bars, but covers them. */}
+      <View style={[styles.root, { height: Dimensions.get("screen").height }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={cancelLabel}
@@ -43,8 +43,16 @@ export function Dialog({
           </Text>
           <Text style={styles.message}>{message}</Text>
           <View style={styles.actions}>
-            <Button label={confirmLabel} onPress={onConfirm} />
-            <Button label={cancelLabel} variant="outline" onPress={onCancel} />
+            <Pressable accessibilityRole="button" onPress={onCancel} style={styles.action}>
+              <Text style={typography.buttonSm}>{cancelLabel}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onConfirm}
+              style={[styles.action, styles.confirm]}
+            >
+              <Text style={[typography.buttonSm, styles.confirmText]}>{confirmLabel}</Text>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -53,16 +61,34 @@ export function Dialog({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, justifyContent: "center", padding: 24 },
+  root: { justifyContent: "center", padding: 24 },
   veil: { backgroundColor: colors.veil },
   dialog: {
     ...shadows.dialog,
     backgroundColor: colors.surface,
     borderRadius: radii.sheet,
-    gap: 10,
-    padding: 20
+    gap: 12,
+    paddingBottom: 16,
+    paddingLeft: 24,
+    paddingRight: 20,
+    paddingTop: 24
   },
   title: { color: colors.ink, fontFamily: fonts.condensedExtraBold, fontSize: 30, lineHeight: 30 },
   message: { ...typography.body, color: colors.slate },
-  actions: { gap: 8, marginTop: 10 }
+  actions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "flex-end",
+    marginTop: 8
+  },
+  action: {
+    alignItems: "center",
+    borderRadius: radii.control,
+    justifyContent: "center",
+    minHeight: MIN_TOUCH_TARGET,
+    paddingHorizontal: 16
+  },
+  confirm: { backgroundColor: colors.ink, paddingHorizontal: 18 },
+  confirmText: { color: colors.surface }
 });

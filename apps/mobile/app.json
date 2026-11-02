@@ -10,7 +10,13 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/brand/notification-icon.png",
+          "color": "#2147F0"
+        }
+      ],
       [
         "expo-font",
         {
@@ -29,7 +35,11 @@
     ],
     "android": {
       "package": "com.saleadvisor.mobile",
-      "permissions": ["POST_NOTIFICATIONS"]
+      "permissions": ["POST_NOTIFICATIONS"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/brand/adaptive-icon.png",
+        "backgroundColor": "#2147F0"
+      }
     },
     "experiments": {
       "typedRoutes": true
@@ -41,6 +51,7 @@
       }
     },
     "owner": "luck109",
-    "backgroundColor": "#F1F2F5"
+    "backgroundColor": "#F1F2F5",
+    "icon": "./assets/brand/icon.png"
   }
 }

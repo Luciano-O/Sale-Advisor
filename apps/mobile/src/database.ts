@@ -5,9 +5,15 @@ import type { OfferCache } from "./cache";
 import type { PendingEventStore } from "./events";
 import { hiddenOfferSnapshot, withOfferDefaults, type CachedOffer } from "./feed";
 import { migratePreferences } from "./preferences";
-import { type LocalPreferences, type MobileOffer, type PendingEvent } from "./types";
+import type {
+  HiddenOffer,
+  HiddenOfferSnapshot,
+  LocalPreferences,
+  MobileOffer,
+  PendingEvent
+} from "./types";
 
-export type AppStateKey = "catalog" | "feed_last_viewed_at" | "feed_refreshed_at";
+export type AppStateKey = "catalog" | "feed_last_viewed_at" | "feed_refreshed_at" | "stores";
 
 export interface MobileDatabase {
   offerCache: OfferCache;
@@ -17,8 +23,12 @@ export interface MobileDatabase {
   savePreferences(preferences: LocalPreferences): Promise<void>;
   getHiddenIds(): Promise<Set<string>>;
   hide(offer: MobileOffer): Promise<void>;
+  hideSnapshot(id: string, snapshot: HiddenOfferSnapshot | null, hiddenAt?: string): Promise<void>;
+  listHidden(): Promise<HiddenOffer[]>;
   unhide(id: string): Promise<void>;
-  unhideAll(): Promise<void>;
+  clearPendingEvents(): Promise<void>;
+  /** Erases everything local; the next ensureInstallation creates a new code. */
+  clearAll(): Promise<void>;
   getAppState(key: AppStateKey): Promise<string | null>;
   setAppState(key: AppStateKey, value: string): Promise<void>;
   enqueueEvent(event: Omit<PendingEvent, "id" | "attempts">): Promise<string>;
@@ -30,7 +40,30 @@ function parseJson<T>(value: string): T {
   return JSON.parse(value) as T;
 }
 
+const LOCAL_TABLES = [
+  "installation",
+  "offer_cache",
+  "preferences",
+  "pending_events",
+  "hidden_offers",
+  "shown_notifications",
+  "app_state"
+];
+
 export function createMobileDatabase(database: SQLiteDatabase): MobileDatabase {
+  const hideSnapshot: MobileDatabase["hideSnapshot"] = async (
+    id,
+    snapshot,
+    hiddenAt = new Date().toISOString()
+  ) => {
+    await database.runAsync(
+      `INSERT INTO hidden_offers (id, hidden_at, payload) VALUES (?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET hidden_at = excluded.hidden_at, payload = excluded.payload`,
+      id,
+      hiddenAt,
+      snapshot ? JSON.stringify(snapshot) : null
+    );
+  };
   return {
     offerCache: {
       async read() {
@@ -109,19 +142,31 @@ export function createMobileDatabase(database: SQLiteDatabase): MobileDatabase {
       return new Set(rows.map(({ id }) => id));
     },
     async hide(offer) {
-      await database.runAsync(
-        `INSERT INTO hidden_offers (id, hidden_at, payload) VALUES (?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET hidden_at = excluded.hidden_at, payload = excluded.payload`,
-        offer.id,
-        new Date().toISOString(),
-        JSON.stringify(hiddenOfferSnapshot(offer))
-      );
+      await hideSnapshot(offer.id, hiddenOfferSnapshot(offer));
+    },
+    hideSnapshot,
+    async listHidden() {
+      const rows = await database.getAllAsync<{
+        id: string;
+        hidden_at: string;
+        payload: string | null;
+      }>("SELECT id, hidden_at, payload FROM hidden_offers ORDER BY hidden_at DESC");
+      return rows.map(({ id, hidden_at, payload }) => ({
+        id,
+        hiddenAt: hidden_at,
+        snapshot: payload ? parseJson<HiddenOfferSnapshot>(payload) : null
+      }));
     },
     async unhide(id) {
       await database.runAsync("DELETE FROM hidden_offers WHERE id = ?", id);
     },
-    async unhideAll() {
-      await database.runAsync("DELETE FROM hidden_offers");
+    async clearPendingEvents() {
+      await database.runAsync("DELETE FROM pending_events");
+    },
+    async clearAll() {
+      await database.withTransactionAsync(async () => {
+        for (const table of LOCAL_TABLES) await database.runAsync(`DELETE FROM ${table}`);
+      });
     },
     async getAppState(key) {
       const row = await database.getFirstAsync<{ value: string }>(

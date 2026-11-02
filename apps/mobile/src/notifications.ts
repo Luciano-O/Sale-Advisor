@@ -4,6 +4,17 @@ import { Platform } from "react-native";
 
 import { fetchOffer } from "./api";
 import { createMobileDatabase } from "./database";
+import { colors } from "./theme";
+import {
+  ACTION_HIDE,
+  ACTION_OPEN_STORE,
+  OFFER_CATEGORY,
+  OFFER_CHANNELS,
+  buildOfferNotification,
+  notificationAction,
+  type NotificationAction
+} from "./notification-content";
+import type { NotificationPermission } from "./settings";
 import type { MobileOffer } from "./types";
 
 Notifications.setNotificationHandler({
@@ -24,26 +35,47 @@ export function notificationDependencies(database: SQLiteDatabase) {
     wasShown: (id: string) => local.wasNotificationShown(id),
     markShown: (id: string) => local.markNotificationShown(id),
     showLocalNotification: async (offer: MobileOffer) => {
+      const { channelId, ...content } = buildOfferNotification(offer);
       await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `${offer.label.replace("_", " ")} · ${offer.product.model}`,
-          body: `${formatMoney(offer.effectivePriceCents)} em ${offer.store.name}`,
-          data: { offerId: offer.id, locallyPresented: true }
-        },
-        trigger: { channelId: OFFERS_CHANNEL_ID }
+        content: { ...content, color: colors.cobalt },
+        trigger: { channelId }
       });
     }
   };
 }
 
-const OFFERS_CHANNEL_ID = "offers";
+const LEGACY_CHANNEL_ID = "offers";
+const CHANNEL_IMPORTANCE = {
+  low: Notifications.AndroidImportance.LOW,
+  default: Notifications.AndroidImportance.DEFAULT,
+  high: Notifications.AndroidImportance.HIGH
+};
 
-export async function configureNotificationChannel(): Promise<void> {
-  if (Platform.OS === "android")
-    await Notifications.setNotificationChannelAsync(OFFERS_CHANNEL_ID, {
-      name: "Ofertas relevantes",
-      importance: Notifications.AndroidImportance.HIGH
+/** Registers the channels and actions; the app may never have opened before a push arrives. */
+export async function configureNotifications(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  await Notifications.deleteNotificationChannelAsync(LEGACY_CHANNEL_ID);
+  for (const { id, name, level, sound, vibrate } of OFFER_CHANNELS)
+    await Notifications.setNotificationChannelAsync(id, {
+      name,
+      importance: CHANNEL_IMPORTANCE[level],
+      ...(sound ? {} : { sound: null }),
+      enableVibrate: vibrate,
+      lightColor: colors.cobalt
     });
+  await Notifications.setNotificationCategoryAsync(OFFER_CATEGORY, [
+    {
+      identifier: ACTION_OPEN_STORE,
+      buttonTitle: "Abrir na loja",
+      options: { opensAppToForeground: true }
+    },
+    { identifier: ACTION_HIDE, buttonTitle: "Ocultar", options: { opensAppToForeground: false } }
+  ]);
+}
+
+export async function notificationPermission(): Promise<NotificationPermission> {
+  const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+  return { granted: status === "granted", canAskAgain };
 }
 
 async function devicePushToken(): Promise<string | null> {
@@ -69,20 +101,27 @@ export async function requestPushPermission(): Promise<boolean> {
   return permission.status === "granted";
 }
 
-export function subscribeToNotifications(onOpenOffer: (offerId: string) => void): () => void {
-  const response = Notifications.addNotificationResponseReceivedListener(({ notification }) => {
-    const offerId = notification.request.content.data?.offerId;
-    if (typeof offerId === "string") onOpenOffer(offerId);
-  });
-  void Notifications.getLastNotificationResponseAsync().then((last) => {
-    const offerId = last?.notification.request.content.data?.offerId;
-    if (typeof offerId === "string") onOpenOffer(offerId);
-  });
-  return () => {
-    response.remove();
-  };
+function actionOf(response: Notifications.NotificationResponse): NotificationAction | null {
+  return notificationAction(response.actionIdentifier, response.notification.request.content.data);
 }
 
-function formatMoney(value: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value / 100);
+export function subscribeToNotifications(
+  onAction: (action: NotificationAction) => void
+): () => void {
+  const handle = (response: Notifications.NotificationResponse) => {
+    const action = actionOf(response);
+    if (action) onAction(action);
+    if (action?.kind === "hide")
+      void Notifications.dismissNotificationAsync(response.notification.request.identifier);
+  };
+  const subscription = Notifications.addNotificationResponseReceivedListener(handle);
+  void Notifications.getLastNotificationResponseAsync().then((last) => {
+    if (!last) return;
+    handle(last);
+    // Otherwise every later start of the app would answer this same notification again.
+    void Notifications.clearLastNotificationResponseAsync();
+  });
+  return () => {
+    subscription.remove();
+  };
 }
