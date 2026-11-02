@@ -22,24 +22,35 @@ function NotificationRouter() {
   return null;
 }
 
+function Navigation() {
+  const { preferences, preferencesReady } = useApp();
+  // Choosing a screen before the saved preferences are read would flash the onboarding.
+  if (!preferencesReady) return <LoadingDatabase />;
+  return (
+    <>
+      <NotificationRouter />
+      <Stack
+        screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.ground } }}
+      >
+        <Stack.Protected guard={preferences.onboardingCompleted}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="offer/[id]" />
+          <Stack.Screen name="seguindo/[subcategoria]" />
+        </Stack.Protected>
+        <Stack.Protected guard={!preferences.onboardingCompleted}>
+          <Stack.Screen name="onboarding" />
+        </Stack.Protected>
+        <Stack.Screen name="debug-notification" />
+      </Stack>
+    </>
+  );
+}
+
 function Application() {
   return (
     <AppProvider>
-      <NotificationRouter />
       <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.ground },
-          headerTintColor: colors.ink,
-          contentStyle: { backgroundColor: colors.ground },
-          headerShadowVisible: false
-        }}
-      >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="offer/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="preferences" options={{ title: "Preferências locais" }} />
-        <Stack.Screen name="debug-notification" options={{ headerShown: false }} />
-      </Stack>
+      <Navigation />
     </AppProvider>
   );
 }

@@ -46,17 +46,27 @@ export async function configureNotificationChannel(): Promise<void> {
     });
 }
 
-export async function requestNativePushToken(): Promise<string | null> {
-  const current = await Notifications.getPermissionsAsync();
-  const permission =
-    current.status === "granted" ? current : await Notifications.requestPermissionsAsync();
-  if (permission.status !== "granted") return null;
+async function devicePushToken(): Promise<string | null> {
   try {
     const token = await Notifications.getDevicePushTokenAsync();
     return typeof token.data === "string" ? token.data : null;
   } catch {
     return null;
   }
+}
+
+/** Never asks the user: the question belongs to the Alertas step of the onboarding. */
+export async function currentPushToken(): Promise<string | null> {
+  const { status } = await Notifications.getPermissionsAsync();
+  return status === "granted" ? devicePushToken() : null;
+}
+
+/** Asks Android for permission; false when the user refused. */
+export async function requestPushPermission(): Promise<boolean> {
+  const current = await Notifications.getPermissionsAsync();
+  const permission =
+    current.status === "granted" ? current : await Notifications.requestPermissionsAsync();
+  return permission.status === "granted";
 }
 
 export function subscribeToNotifications(onOpenOffer: (offerId: string) => void): () => void {

@@ -64,6 +64,7 @@ export async function fetchOfferPage(
 }
 
 export interface CatalogModel {
+  category: string;
   vendor: string;
   model: string;
 }
@@ -84,10 +85,11 @@ export async function registerInstallation(id: string, appVersion: string): Prom
   });
 }
 
-export async function updateBroadPreferences(id: string, minimumLabel: ScoreLabel): Promise<void> {
+/** The server only learns the category; what is followed stays on the device. */
+export async function updateBroadPreferences(id: string): Promise<void> {
   await request(`/v1/installations/${encodeURIComponent(id)}/notification-preferences`, {
     method: "PUT",
-    body: JSON.stringify({ category: "GPU", minimumLabel })
+    body: JSON.stringify({ category: "GPU", minimumLabel: "boa" })
   });
 }
 

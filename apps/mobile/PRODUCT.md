@@ -42,9 +42,9 @@ A classificação vem do histórico de preços do produto canônico (mínima de 
   - O limiar de alerta é decidido pelo sistema e fica fixo em `boa`. O usuário não ajusta nível em nenhuma tela.
 - O feed e o detalhe da oferta mostram a mediana de 30 dias, a mínima de 90 dias e a nota de 0 a 100. A API pública os expõe em `history` (`median30dInCents`, `lowest90dInCents`, `discountVsMedianPercent`).
 - Uma oferta é "válida" enquanto foi divulgada nas últimas 72 h (`OFFER_TTL_HOURS`). Quem abre um push antigo precisa ver o estado "expirada".
-- Hoje o catálogo (`/v1/catalog`) cobre só GPUs. As outras subcategorias precisam de catálogo próprio antes de ficarem ativas. **Decidido em 2026-10-29:** o "nível mínimo" sai do app, inclusive dos Ajustes. O código atual ainda guarda `minimumLabel` e o envia à API; ele passa a ser fixo em `boa`.
+- Hoje o catálogo (`/v1/catalog`) cobre só GPUs. As outras subcategorias precisam de catálogo próprio antes de ficarem ativas. **Decidido em 2026-10-29:** o "nível mínimo" saiu do app. O limiar é fixo em `boa` (ADR 0008), e a API segue recebendo `minimumLabel: "boa"`.
 - Catálogo: categoria hardware, com GPUs como única categoria ativa no MVP. O layout precisa comportar outras categorias de hardware (CPU, SSD etc.) sem redesenho.
-- Taxonomia de GPU controlada (NVIDIA RTX 30/40/50, AMD RX 6000/7000/9000), servida pelo catálogo da API, com fallback para texto livre offline.
+- Taxonomia de GPU controlada (NVIDIA RTX 30/40/50, AMD RX 6000/7000/9000), servida pelo catálogo da API e guardada no aparelho. Sem conexão na primeira vez, o usuário segue a subcategoria inteira.
 - O usuário não deve ser notificado repetidamente pela mesma oferta consolidada.
 - Alerta push, aprovado em 2026-10-29:
   - O cabeçalho é "Sale Advisor · loja · hora" e o título é "produto por preço" (por exemplo "RTX 5060 8GB por R$ 1.899,90").

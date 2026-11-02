@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { handleOfferPush } from "./push";
-import type { LocalPreferences, MobileOffer } from "./types";
+import { DEFAULT_PREFERENCES, type LocalPreferences, type MobileOffer } from "./types";
 
 const offer = {
   id: "offer-1",
@@ -20,11 +20,10 @@ const offer = {
   url: "https://store.example/rx"
 } satisfies MobileOffer;
 const preferences: LocalPreferences = {
-  followedCategories: ["GPU"],
-  followedModels: [],
-  blockedBrands: [],
-  blockedStores: [],
-  minimumLabel: "boa"
+  ...DEFAULT_PREFERENCES,
+  onboardingCompleted: true,
+  followAll: true,
+  alertsEnabled: true
 };
 
 describe("data-only push handling", () => {
@@ -84,11 +83,23 @@ describe("data-only push handling", () => {
   });
 
   it("applies local filters to the push summary", async () => {
-    const dependencies = summaryDependencies({ followedModels: ["RX 9070 XT"] });
+    const dependencies = summaryDependencies({
+      followAll: false,
+      subcategories: { GPU: { mode: "produtos", products: ["RX 9070 XT"] } }
+    });
     await expect(
       handleOfferPush({ offerId: "offer-9", offer: JSON.stringify(summary) }, dependencies)
     ).resolves.toBe("filtered");
     expect(dependencies.getOffer).not.toHaveBeenCalled();
+  });
+
+  it("stays silent when alerts are turned off", async () => {
+    const dependencies = summaryDependencies({ alertsEnabled: false });
+    await expect(
+      handleOfferPush({ offerId: "offer-9", offer: JSON.stringify(summary) }, dependencies)
+    ).resolves.toBe("filtered");
+    expect(dependencies.showLocalNotification).not.toHaveBeenCalled();
+    expect(dependencies.markShown).not.toHaveBeenCalled();
   });
 
   it("fetches the offer when the push summary is malformed", async () => {

@@ -46,11 +46,7 @@ export function SegmentedControl<Key extends string>({
             {selected && !compact ? (
               <Icon name="check" size={16} color={colors.surface} strokeWidth={3} />
             ) : null}
-            <Text
-              style={[styles.text, compact && styles.textCompact, selected && styles.textSelected]}
-            >
-              {option.label}
-            </Text>
+            <Text style={[styles.text, selected && styles.textSelected]}>{option.label}</Text>
           </Pressable>
         );
       })}
@@ -79,7 +75,6 @@ const styles = StyleSheet.create({
   segmentCompact: { flexShrink: 1, paddingHorizontal: 12 },
   divided: { borderLeftColor: colors.ink, borderLeftWidth: 1.5 },
   selected: { backgroundColor: colors.cobalt },
-  text: { color: colors.ink, flexShrink: 1, fontFamily: fonts.bodyMedium, fontSize: 15 },
-  textCompact: { fontSize: 14 },
+  text: { color: colors.ink, flexShrink: 1, fontFamily: fonts.bodyMedium, fontSize: 14 },
   textSelected: { color: colors.surface, fontFamily: fonts.bodyBold }
 });

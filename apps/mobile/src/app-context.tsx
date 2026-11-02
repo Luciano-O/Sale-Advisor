@@ -12,18 +12,24 @@ import {
 } from "react";
 
 import {
+  fetchCatalog,
   fetchOfferPage,
   registerInstallation,
   sendEvents,
   updateBroadPreferences,
-  updatePushTarget
+  updatePushTarget,
+  type CatalogModel
 } from "./api";
 import { loadFeed, type FeedSource } from "./cache";
 import { createMobileDatabase } from "./database";
 import { flushPendingEvents } from "./events";
 import { appendOfferPage } from "./feed";
 import { filterOffers } from "./filters";
-import { configureNotificationChannel, requestNativePushToken } from "./notifications";
+import {
+  configureNotificationChannel,
+  currentPushToken,
+  requestPushPermission
+} from "./notifications";
 import { STARTER_OFFERS } from "./starter-offers";
 import {
   DEFAULT_PREFERENCES,
@@ -33,9 +39,28 @@ import {
   type OfferSort
 } from "./types";
 
+export type CatalogStatus = "loading" | "ready" | "failed";
+
+export interface UndoNotice {
+  message: string;
+  undo(): void;
+}
+
 interface AppState {
   offers: MobileOffer[];
+  /** Everything loaded, before the filters: the onboarding tests its choices against this. */
+  feedOffers: MobileOffer[];
   preferences: LocalPreferences;
+  /** False until the saved preferences are read; no screen can be chosen before that. */
+  preferencesReady: boolean;
+  catalog: CatalogModel[] | null;
+  catalogStatus: CatalogStatus;
+  reloadCatalog(): Promise<void>;
+  /** Survives going back to the previous screen, which is where it is shown. */
+  undoNotice: UndoNotice | null;
+  showUndoNotice(notice: UndoNotice | null): void;
+  /** Asks Android for permission and registers this device for alerts; false when refused. */
+  enableAlerts(): Promise<boolean>;
   installationId: string | null;
   loading: boolean;
   offline: boolean;
@@ -75,6 +100,10 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [allOffers, setAllOffers] = useState<MobileOffer[]>([]);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
+  const [preferencesReady, setPreferencesReady] = useState(false);
+  const [catalog, setCatalog] = useState<CatalogModel[] | null>(null);
+  const [catalogStatus, setCatalogStatus] = useState<CatalogStatus>("loading");
+  const [undoNotice, showUndoNotice] = useState<UndoNotice | null>(null);
   const [installationId, setInstallationId] = useState<string | null>(null);
   const installationIdRef = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -183,21 +212,39 @@ export function AppProvider({ children }: PropsWithChildren) {
     }
   }, [database.offerCache]);
 
+  const reloadCatalog = useCallback(async () => {
+    setCatalogStatus("loading");
+    try {
+      const items = await fetchCatalog();
+      setCatalog(items);
+      setCatalogStatus("ready");
+      await database.setAppState("catalog", JSON.stringify(items));
+    } catch {
+      // A catalog saved earlier keeps working offline; only a first run has nothing to show.
+      setCatalogStatus("failed");
+    }
+  }, [database]);
+
   useEffect(() => {
     let active = true;
     void (async () => {
-      const [id, savedPreferences, savedHiddenIds, viewedAt, refreshedAt] = await Promise.all([
-        database.ensureInstallation(),
-        database.getPreferences(),
-        database.getHiddenIds(),
-        database.getAppState("feed_last_viewed_at"),
-        database.getAppState("feed_refreshed_at")
-      ]);
+      const [id, savedPreferences, savedHiddenIds, viewedAt, refreshedAt, savedCatalog] =
+        await Promise.all([
+          database.ensureInstallation(),
+          database.getPreferences(),
+          database.getHiddenIds(),
+          database.getAppState("feed_last_viewed_at"),
+          database.getAppState("feed_refreshed_at"),
+          database.getAppState("catalog")
+        ]);
       if (!active) return;
       setInstallationId(id);
       installationIdRef.current = id;
       setPreferences(savedPreferences);
+      setPreferencesReady(true);
       setHiddenIds(savedHiddenIds);
+      if (savedCatalog) setCatalog(JSON.parse(savedCatalog) as CatalogModel[]);
+      void reloadCatalog();
       setLastViewedAt(viewedAt);
       setLastUpdated(refreshedAt);
       // The list appears at once; registering and fetching can take long on a bad connection.
@@ -210,9 +257,12 @@ export function AppProvider({ children }: PropsWithChildren) {
       });
       try {
         await registerInstallation(id, Constants.expoConfig?.version ?? "0.1.0");
-        await updateBroadPreferences(id, savedPreferences.minimumLabel);
+        await updateBroadPreferences(id);
         await configureNotificationChannel();
-        await updatePushTarget(id, await requestNativePushToken());
+        await updatePushTarget(
+          id,
+          savedPreferences.alertsEnabled ? await currentPushToken() : null
+        );
         await flushPendingEvents(database.pendingEvents, sendEvents);
       } catch {
         // Startup remains offline-first; registration and events retry later.
@@ -224,21 +274,27 @@ export function AppProvider({ children }: PropsWithChildren) {
     return () => {
       active = false;
     };
-  }, [database, refresh]);
+  }, [database, refresh, reloadCatalog]);
 
   const save = useCallback(
     async (value: LocalPreferences) => {
       await database.savePreferences(value);
       setPreferences(value);
-      if (installationId)
-        try {
-          await updateBroadPreferences(installationId, value.minimumLabel);
-        } catch {
-          // Fine preferences are safely local and broad sync can retry later.
-        }
     },
-    [database, installationId]
+    [database]
   );
+
+  const enableAlerts = useCallback(async () => {
+    if (!(await requestPushPermission())) return false;
+    const id = installationIdRef.current ?? (await database.ensureInstallation());
+    try {
+      await configureNotificationChannel();
+      await updatePushTarget(id, await currentPushToken());
+    } catch {
+      // Permission is what the user decided; registering retries at the next start.
+    }
+    return true;
+  }, [database]);
 
   const hideOffer = useCallback(
     async (offer: MobileOffer) => {
@@ -267,7 +323,15 @@ export function AppProvider({ children }: PropsWithChildren) {
   const value = useMemo<AppState>(
     () => ({
       offers: filterOffers(allOffers, preferences, hiddenIds, sort),
+      feedOffers: allOffers,
       preferences,
+      preferencesReady,
+      catalog,
+      catalogStatus,
+      reloadCatalog,
+      undoNotice,
+      showUndoNotice,
+      enableAlerts,
       installationId,
       loading,
       offline,
@@ -294,6 +358,12 @@ export function AppProvider({ children }: PropsWithChildren) {
     [
       allOffers,
       preferences,
+      preferencesReady,
+      catalog,
+      catalogStatus,
+      reloadCatalog,
+      undoNotice,
+      enableAlerts,
       hiddenIds,
       installationId,
       loading,

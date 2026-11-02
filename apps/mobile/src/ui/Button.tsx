@@ -17,7 +17,7 @@ export function Button({
 }: {
   label: string;
   onPress?(): void;
-  variant?: "primary" | "outline" | "destructive" | "onInk";
+  variant?: "primary" | "outline" | "destructive" | "onInk" | "link";
   icon?: IconName;
   disabled?: boolean;
   accessibilityLabel?: string;
@@ -32,6 +32,12 @@ export function Button({
       >
         <Icon name="trash" size={20} />
         <Text style={styles.destructiveText}>{label}</Text>
+      </Pressable>
+    );
+  if (variant === "link")
+    return (
+      <Pressable accessibilityRole="button" onPress={onPress} style={styles.link}>
+        <Text style={styles.linkText}>{label}</Text>
       </Pressable>
     );
   const primary = variant === "primary";
@@ -98,9 +104,11 @@ const styles = StyleSheet.create({
   disabled: { backgroundColor: colors.labelNormal, borderColor: colors.labelNormal },
   disabledText: { color: colors.disabledText },
   pressed: { opacity: 0.8 },
+  link: { alignItems: "center", justifyContent: "center", minHeight: MIN_TOUCH_TARGET },
+  linkText: { ...typography.buttonSm, color: colors.cobalt },
   destructive: {
     alignItems: "center",
-    alignSelf: "flex-start",
+    alignSelf: "center",
     flexDirection: "row",
     gap: 8,
     minHeight: MIN_TOUCH_TARGET
