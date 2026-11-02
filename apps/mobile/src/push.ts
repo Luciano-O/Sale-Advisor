@@ -27,7 +27,8 @@ export async function handleOfferPush(
     dependencies.getPreferences(),
     dependencies.getHiddenIds()
   ]);
-  if (!isOfferRelevant(offer, preferences, hiddenIds)) return "filtered";
+  if (!preferences.alertsEnabled || !isOfferRelevant(offer, preferences, hiddenIds))
+    return "filtered";
   await dependencies.showLocalNotification(offer);
   await dependencies.markShown(offerId);
   return "shown";

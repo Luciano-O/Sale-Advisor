@@ -220,10 +220,11 @@ Preferências finas locais:
 - modelos desejados.
 - marcas bloqueadas.
 - lojas bloqueadas.
-- score mínimo.
 - produtos ocultados.
 
-O backend pode receber apenas preferências amplas para notificação, como categoria `GPU` e score mínimo. O filtro final deve continuar no aparelho.
+O limiar de alerta não é uma preferência: é fixo em `boa` (ADR 0008).
+
+O backend pode receber apenas preferências amplas para notificação, como a categoria `GPU`. O filtro final deve continuar no aparelho.
 
 ## Métricas E Privacidade
 

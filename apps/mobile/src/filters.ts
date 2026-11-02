@@ -8,6 +8,9 @@ const LABEL_RANK: Record<ScoreLabel, number> = {
   excepcional: 3
 };
 
+// Decided by the system: the user chooses what to follow, never how good an offer must be.
+const MINIMUM_LABEL: ScoreLabel = "boa";
+
 const normalize = (value: string) => value.trim().toLocaleLowerCase("pt-BR");
 
 export function isOfferRelevant(
@@ -16,18 +19,7 @@ export function isOfferRelevant(
   hiddenIds: ReadonlySet<string>
 ): boolean {
   if (hiddenIds.has(offer.id) || hiddenIds.has(offer.productId)) return false;
-  if (
-    preferences.followedCategories.length > 0 &&
-    !preferences.followedCategories.some(
-      (category) => normalize(category) === normalize(offer.product.category)
-    )
-  )
-    return false;
-  if (
-    preferences.followedModels.length > 0 &&
-    !preferences.followedModels.some((model) => normalize(model) === normalize(offer.product.model))
-  )
-    return false;
+  if (LABEL_RANK[offer.label] < LABEL_RANK[MINIMUM_LABEL]) return false;
   if (
     preferences.blockedBrands.some((brand) => normalize(brand) === normalize(offer.product.vendor))
   )
@@ -40,7 +32,13 @@ export function isOfferRelevant(
     )
   )
     return false;
-  return LABEL_RANK[offer.label] >= LABEL_RANK[preferences.minimumLabel];
+  if (preferences.followAll) return true;
+  const follow = preferences.subcategories[offer.product.category];
+  if (!follow) return false;
+  return (
+    follow.mode === "inteira" ||
+    follow.products.some((model) => normalize(model) === normalize(offer.product.model))
+  );
 }
 
 export function filterOffers(

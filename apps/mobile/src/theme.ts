@@ -68,11 +68,28 @@ function textRole(
 
 const TABULAR: TextStyle = { fontVariant: ["tabular-nums"] };
 
+// A line height below the font's own cuts descenders on Android. This room keeps them visible
+// without changing the spacing around the text.
+const descenderRoom = (size: number): TextStyle => ({ marginBottom: -size, paddingBottom: size });
+
 export const typography = {
-  display: textRole(fonts.condensedExtraBold, 58, 0.9, { letterSpacing: -0.58 }),
-  headline: textRole(fonts.condensedExtraBold, 42, 0.95, { letterSpacing: -0.42 }),
-  productName: textRole(fonts.condensedExtraBold, 46, 0.95, { letterSpacing: -0.46 }),
-  price: textRole(fonts.condensedExtraBold, 52, 0.95, { letterSpacing: -0.52, ...TABULAR }),
+  display: textRole(fonts.condensedExtraBold, 58, 0.9, {
+    letterSpacing: -0.58,
+    ...descenderRoom(11)
+  }),
+  headline: textRole(fonts.condensedExtraBold, 42, 0.95, {
+    letterSpacing: -0.42,
+    ...descenderRoom(8)
+  }),
+  productName: textRole(fonts.condensedExtraBold, 46, 0.95, {
+    letterSpacing: -0.46,
+    ...descenderRoom(9)
+  }),
+  price: textRole(fonts.condensedExtraBold, 52, 0.95, {
+    letterSpacing: -0.52,
+    ...TABULAR,
+    ...descenderRoom(9)
+  }),
   title: textRole(fonts.condensedBold, 24, 1.05),
   titleSm: textRole(fonts.condensedBold, 20, 1.1),
   section: textRole(fonts.condensedSemiBold, 16, 1.2, { color: colors.slate }),

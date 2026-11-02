@@ -4,14 +4,10 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import type { OfferCache } from "./cache";
 import type { PendingEventStore } from "./events";
 import { hiddenOfferSnapshot, withOfferDefaults, type CachedOffer } from "./feed";
-import {
-  DEFAULT_PREFERENCES,
-  type LocalPreferences,
-  type MobileOffer,
-  type PendingEvent
-} from "./types";
+import { migratePreferences } from "./preferences";
+import { type LocalPreferences, type MobileOffer, type PendingEvent } from "./types";
 
-export type AppStateKey = "feed_last_viewed_at" | "feed_refreshed_at";
+export type AppStateKey = "catalog" | "feed_last_viewed_at" | "feed_refreshed_at";
 
 export interface MobileDatabase {
   offerCache: OfferCache;
@@ -98,7 +94,7 @@ export function createMobileDatabase(database: SQLiteDatabase): MobileDatabase {
       const row = await database.getFirstAsync<{ payload: string }>(
         "SELECT payload FROM preferences WHERE singleton = 1"
       );
-      return row ? parseJson<LocalPreferences>(row.payload) : DEFAULT_PREFERENCES;
+      return migratePreferences(row ? parseJson<unknown>(row.payload) : null);
     },
     async savePreferences(preferences) {
       await database.runAsync(

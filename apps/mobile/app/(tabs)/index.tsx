@@ -19,30 +19,30 @@ import Animated, {
   withTiming
 } from "react-native-reanimated";
 
-import { useApp } from "../src/app-context";
+import { useApp } from "../../src/app-context";
 import {
   ALL_SUBCATEGORIES,
   hiddenOfferSnapshot,
   offerCountLabel,
   subcategoryFilters,
   visibleOffers
-} from "../src/feed";
-import { formatDelta, formatMoney, formatRelativeTime, formatUpdateTime } from "../src/format";
-import { labelColor, labelName, offerName } from "../src/labels";
-import { isNewOffer } from "../src/offer-state";
-import { colors, fonts, radii, typography } from "../src/theme";
-import type { MobileOffer, OfferSort } from "../src/types";
-import { BottomNav } from "../src/ui/BottomNav";
-import { BrandLockup } from "../src/ui/BrandLockup";
-import { Button } from "../src/ui/Button";
-import { Chip } from "../src/ui/Chip";
-import { Headline } from "../src/ui/Headline";
-import { Icon } from "../src/ui/Icon";
-import { Panel } from "../src/ui/Panel";
-import { Screen } from "../src/ui/Screen";
-import { SegmentedControl } from "../src/ui/SegmentedControl";
-import { Snackbar } from "../src/ui/Snackbar";
-import { discountBarPercent } from "../src/verdict";
+} from "../../src/feed";
+import { formatDelta, formatMoney, formatRelativeTime, formatUpdateTime } from "../../src/format";
+import { labelColor, labelName, offerName } from "../../src/labels";
+import { isNewOffer } from "../../src/offer-state";
+import { activeSubcategories, followedSubcategories } from "../../src/preferences";
+import { colors, fonts, radii, typography } from "../../src/theme";
+import type { MobileOffer, OfferSort } from "../../src/types";
+import { BrandLockup } from "../../src/ui/BrandLockup";
+import { Button } from "../../src/ui/Button";
+import { Chip } from "../../src/ui/Chip";
+import { Headline } from "../../src/ui/Headline";
+import { Icon } from "../../src/ui/Icon";
+import { Panel } from "../../src/ui/Panel";
+import { Screen } from "../../src/ui/Screen";
+import { SegmentedControl } from "../../src/ui/SegmentedControl";
+import { Snackbar } from "../../src/ui/Snackbar";
+import { discountBarPercent } from "../../src/verdict";
 
 const SORT_OPTIONS: ReadonlyArray<{ key: OfferSort; label: string }> = [
   { key: "recent", label: "Mais recentes" },
@@ -174,7 +174,7 @@ function EmptyList() {
           <Button
             label="Ver o que eu sigo"
             variant="outline"
-            onPress={() => router.push("/preferences")}
+            onPress={() => router.navigate("/seguindo")}
           />
         </View>
       </Panel>
@@ -225,6 +225,7 @@ export default function OffersScreen() {
   const {
     offers,
     preferences,
+    catalog,
     loading,
     offline,
     feedSource,
@@ -245,8 +246,8 @@ export default function OffersScreen() {
   const model = params.model || undefined;
   const [category, setCategory] = useState(ALL_SUBCATEGORIES);
   const filters = useMemo(
-    () => subcategoryFilters(preferences.followedCategories),
-    [preferences.followedCategories]
+    () => subcategoryFilters(followedSubcategories(preferences, activeSubcategories(catalog))),
+    [catalog, preferences]
   );
   const now = new Date();
   const rows = visibleOffers(offers, {
@@ -354,16 +355,9 @@ export default function OffersScreen() {
         <Snackbar
           message={`${hiddenOfferSnapshot(lastHidden).name} ocultada`}
           onAction={() => void undoHide()}
-          bottom={100}
+          bottom={16}
         />
       ) : null}
-      <BottomNav
-        active="ofertas"
-        onSelect={(key) => {
-          // Seguindo and Ajustes arrive in the next phases; until then both lead to the filters.
-          if (key !== "ofertas") router.push("/preferences");
-        }}
-      />
     </Screen>
   );
 }

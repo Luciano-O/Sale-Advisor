@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { filterOffers, isOfferRelevant } from "./filters";
-import type { LocalPreferences, MobileOffer } from "./types";
+import { DEFAULT_PREFERENCES, type LocalPreferences, type MobileOffer } from "./types";
 
 const baseOffer: MobileOffer = {
   id: "offer-1",
@@ -21,23 +21,66 @@ const baseOffer: MobileOffer = {
 };
 
 const preferences: LocalPreferences = {
-  followedCategories: ["GPU"],
-  followedModels: ["RTX 4060"],
-  blockedBrands: [],
-  blockedStores: [],
-  minimumLabel: "boa"
+  ...DEFAULT_PREFERENCES,
+  subcategories: { GPU: { mode: "produtos", products: ["RTX 4060"] } }
 };
 
 describe("local offer filters", () => {
-  it("keeps only offers matching local intent and the minimum label", () => {
+  it("keeps a followed product and drops the others", () => {
     expect(isOfferRelevant(baseOffer, preferences, new Set())).toBe(true);
-    expect(isOfferRelevant({ ...baseOffer, label: "normal" }, preferences, new Set())).toBe(false);
     expect(
       isOfferRelevant(
         { ...baseOffer, product: { ...baseOffer.product, model: "RTX 4070" } },
         preferences,
         new Set()
       )
+    ).toBe(false);
+  });
+
+  it("ignores letter case when matching a product", () => {
+    const lower = { GPU: { mode: "produtos" as const, products: ["rtx 4060"] } };
+    expect(isOfferRelevant(baseOffer, { ...preferences, subcategories: lower }, new Set())).toBe(
+      true
+    );
+  });
+
+  it("keeps any product of a subcategory followed whole", () => {
+    const whole = { GPU: { mode: "inteira" as const, products: ["RTX 4070"] } };
+    expect(isOfferRelevant(baseOffer, { ...preferences, subcategories: whole }, new Set())).toBe(
+      true
+    );
+  });
+
+  it("keeps any offer when following all hardware", () => {
+    expect(
+      isOfferRelevant(baseOffer, { ...preferences, followAll: true, subcategories: {} }, new Set())
+    ).toBe(true);
+  });
+
+  it("drops subcategories that are not followed, or have no product chosen", () => {
+    expect(isOfferRelevant(baseOffer, { ...preferences, subcategories: {} }, new Set())).toBe(
+      false
+    );
+    const none = { GPU: { mode: "produtos" as const, products: [] } };
+    expect(isOfferRelevant(baseOffer, { ...preferences, subcategories: none }, new Set())).toBe(
+      false
+    );
+  });
+
+  it("brings only offers rated boa or better, whatever is followed", () => {
+    const everything = { ...preferences, followAll: true };
+    for (const label of ["boa", "muito_boa", "excepcional"] as const)
+      expect(isOfferRelevant({ ...baseOffer, label }, everything, new Set())).toBe(true);
+    expect(isOfferRelevant({ ...baseOffer, label: "normal" }, everything, new Set())).toBe(false);
+  });
+
+  it("blocks stores and brands even when following all hardware", () => {
+    const everything = { ...preferences, followAll: true };
+    expect(
+      isOfferRelevant(baseOffer, { ...everything, blockedBrands: ["nvidia"] }, new Set())
+    ).toBe(false);
+    expect(
+      isOfferRelevant(baseOffer, { ...everything, blockedStores: ["Loja Boa"] }, new Set())
     ).toBe(false);
   });
 

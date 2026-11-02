@@ -32,12 +32,23 @@ export interface HiddenOfferSnapshot {
   priceCents: number;
 }
 
+export type SubcategoryMode = "inteira" | "produtos";
+
+export interface SubcategoryFollow {
+  mode: SubcategoryMode;
+  /** Stay saved while following the whole subcategory, for coming back to them. */
+  products: string[];
+}
+
 export interface LocalPreferences {
-  followedCategories: string[];
-  followedModels: string[];
-  blockedBrands: string[];
+  version: 2;
+  onboardingCompleted: boolean;
+  followAll: boolean;
+  subcategories: Record<string, SubcategoryFollow>;
   blockedStores: string[];
-  minimumLabel: ScoreLabel;
+  blockedBrands: string[];
+  alertsEnabled: boolean;
+  analyticsEnabled: boolean;
 }
 
 export type AnonymousEventName =
@@ -61,9 +72,12 @@ export interface PendingEvent {
 }
 
 export const DEFAULT_PREFERENCES: LocalPreferences = {
-  followedCategories: ["GPU"],
-  followedModels: [],
-  blockedBrands: [],
+  version: 2,
+  onboardingCompleted: false,
+  followAll: false,
+  subcategories: {},
   blockedStores: [],
-  minimumLabel: "boa"
+  blockedBrands: [],
+  alertsEnabled: false,
+  analyticsEnabled: true
 };

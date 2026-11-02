@@ -56,9 +56,11 @@ const styles = StyleSheet.create({
   item: { alignItems: "center", flex: 1, gap: 4, justifyContent: "center", paddingTop: 6 },
   indicator: {
     alignItems: "center",
+    backgroundColor: "transparent",
     borderRadius: radii.control,
     height: 32,
     justifyContent: "center",
+    overflow: "hidden",
     width: 56
   },
   indicatorActive: { backgroundColor: colors.cobalt },

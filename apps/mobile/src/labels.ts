@@ -37,10 +37,31 @@ const CONDITION_NAMES: Record<string, string> = {
 export const conditionName = (condition: string | undefined) =>
   (condition ? CONDITION_NAMES[condition] : undefined) ?? "Não informada";
 
-const SUBCATEGORY_NAMES: Record<string, { plural: string; singular: string }> = {
-  GPU: { plural: "Placas de vídeo", singular: "Placa de vídeo" }
+const SUBCATEGORIES: Record<
+  string,
+  { plural: string; singular: string; hint: string; searchExample: string; addExample: string }
+> = {
+  GPU: {
+    plural: "Placas de vídeo",
+    singular: "Placa de vídeo",
+    hint: "GeForce RTX, Radeon RX",
+    searchExample: "Buscar placa de vídeo, ex.: RTX 5070 Ti",
+    addExample: "Adicionar placa, ex.: RTX 5070 Ti"
+  }
 };
 
-export const subcategoryName = (key: string) => SUBCATEGORY_NAMES[key]?.plural ?? key;
+export const subcategoryName = (key: string) => SUBCATEGORIES[key]?.plural ?? key;
 
-export const subcategorySingularName = (key: string) => SUBCATEGORY_NAMES[key]?.singular ?? key;
+export const subcategorySingularName = (key: string) => SUBCATEGORIES[key]?.singular ?? key;
+
+export const subcategoryHint = (key: string) => SUBCATEGORIES[key]?.hint ?? "";
+
+export const subcategorySearchExample = (key: string) =>
+  SUBCATEGORIES[key]?.searchExample ?? "Buscar produto";
+
+export const subcategoryAddExample = (key: string) =>
+  SUBCATEGORIES[key]?.addExample ?? "Adicionar produto";
+
+/** For sentences: "Parar de seguir placas de vídeo". */
+export const subcategoryLowerName = (key: string) =>
+  SUBCATEGORIES[key]?.plural.toLocaleLowerCase("pt-BR") ?? key;

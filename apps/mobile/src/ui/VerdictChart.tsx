@@ -64,6 +64,95 @@ function RisingNote({ children }: { children: React.ReactNode }) {
   return <Animated.View style={rise}>{children}</Animated.View>;
 }
 
+/** The test itself: today's price against the median and the 90-day low, on one axis. */
+export function VerdictBars({
+  prices,
+  discountPercent,
+  expired = false
+}: {
+  prices: VerdictPrices;
+  discountPercent: number | null;
+  expired?: boolean;
+}) {
+  const chart = verdictChart(prices);
+  const delta = formatDelta(discountPercent);
+  // The columns hold numbers that cannot wrap, so they follow the system font size and the longest
+  // price. All rows share one width, or their bars would not be on the same scale.
+  const scale = Math.max(1, useWindowDimensions().fontScale);
+  const valueWidth =
+    Math.max(COLUMN_VALUE, formatAmount(prices.priceCents).length * VALUE_CHAR_WIDTH) * scale;
+  // Large text has no room for every axis label; the grid lines stay.
+  const sparseTicks = scale > SPARSE_TICKS_FROM_SCALE;
+  if (!chart) return null;
+  return (
+    <View style={styles.chart}>
+      {chart.rows.map((row) => (
+        <View key={row.key} style={styles.grid}>
+          <Text style={row.key === "today" ? styles.rowTitleToday : styles.rowTitle}>
+            {row.key === "today" && expired ? "Último preço" : ROW_TITLES[row.key]}
+          </Text>
+          <View style={styles.barArea}>
+            {chart.ticks.map((tick) => (
+              <View key={tick.cents} style={[styles.gridLine, { left: `${tick.percent}%` }]} />
+            ))}
+            <GrowingBar row={row} />
+          </View>
+          <Text
+            numberOfLines={1}
+            style={[row.key === "today" ? styles.valueToday : styles.value, { width: valueWidth }]}
+          >
+            {row.key === "today" ? formatAmount(row.cents) : formatWholeAmount(row.cents)}
+          </Text>
+        </View>
+      ))}
+      {chart.bracket && delta ? (
+        <RisingNote>
+          <View style={styles.grid}>
+            <View style={styles.rowTitleSpace} />
+            <View style={[styles.bracketArea, { height: BRACKET_HEIGHT * scale }]}>
+              <View
+                style={[
+                  styles.bracket,
+                  {
+                    left: `${chart.bracket.startPercent}%`,
+                    right: `${100 - chart.bracket.endPercent}%`
+                  }
+                ]}
+              />
+              <Text style={[styles.delta, { left: `${chart.bracket.midPercent}%` }]}>{delta}</Text>
+            </View>
+            <Text numberOfLines={1} style={[styles.vs, { width: valueWidth }]}>
+              vs. mediana
+            </Text>
+          </View>
+        </RisingNote>
+      ) : null}
+      <View style={styles.grid}>
+        <View style={styles.rowTitleSpace} />
+        <View style={[styles.tickArea, { height: TICK_HEIGHT * scale }]}>
+          {chart.ticks.map((tick, index) =>
+            sparseTicks && index % 2 === 1 ? null : (
+              <Text
+                key={tick.cents}
+                style={[
+                  styles.tick,
+                  index > 0 && styles.tickCentered,
+                  { left: `${tick.percent}%` }
+                ]}
+              >
+                {index === 0 && !sparseTicks
+                  ? formatWholeMoney(tick.cents)
+                  : formatWholeAmount(tick.cents)}
+              </Text>
+            )
+          )}
+        </View>
+        <View style={{ width: valueWidth }} />
+      </View>
+    </View>
+  );
+}
+
 /**
  * The signature: a full-width cobalt band that shows today's price being tested against the
  * median and the 90-day low, with the label as the conclusion.
@@ -81,15 +170,6 @@ export function VerdictChart({
   discountPercent: number | null;
   expired?: boolean;
 }) {
-  const chart = verdictChart(prices);
-  const delta = formatDelta(discountPercent);
-  // The columns hold numbers that cannot wrap, so they follow the system font size and the longest
-  // price. All rows share one width, or their bars would not be on the same scale.
-  const scale = Math.max(1, useWindowDimensions().fontScale);
-  const valueWidth =
-    Math.max(COLUMN_VALUE, formatAmount(prices.priceCents).length * VALUE_CHAR_WIDTH) * scale;
-  // Large text has no room for every axis label; the grid lines stay.
-  const sparseTicks = scale > SPARSE_TICKS_FROM_SCALE;
   return (
     <View style={styles.band}>
       <View style={styles.header}>
@@ -99,78 +179,7 @@ export function VerdictChart({
         </View>
         <Text style={styles.score}>nota {qualityScore}/100</Text>
       </View>
-      {chart ? (
-        <View style={styles.chart}>
-          {chart.rows.map((row) => (
-            <View key={row.key} style={styles.grid}>
-              <Text style={row.key === "today" ? styles.rowTitleToday : styles.rowTitle}>
-                {row.key === "today" && expired ? "Último preço" : ROW_TITLES[row.key]}
-              </Text>
-              <View style={styles.barArea}>
-                {chart.ticks.map((tick) => (
-                  <View key={tick.cents} style={[styles.gridLine, { left: `${tick.percent}%` }]} />
-                ))}
-                <GrowingBar row={row} />
-              </View>
-              <Text
-                numberOfLines={1}
-                style={[
-                  row.key === "today" ? styles.valueToday : styles.value,
-                  { width: valueWidth }
-                ]}
-              >
-                {row.key === "today" ? formatAmount(row.cents) : formatWholeAmount(row.cents)}
-              </Text>
-            </View>
-          ))}
-          {chart.bracket && delta ? (
-            <RisingNote>
-              <View style={styles.grid}>
-                <View style={styles.rowTitleSpace} />
-                <View style={[styles.bracketArea, { height: BRACKET_HEIGHT * scale }]}>
-                  <View
-                    style={[
-                      styles.bracket,
-                      {
-                        left: `${chart.bracket.startPercent}%`,
-                        right: `${100 - chart.bracket.endPercent}%`
-                      }
-                    ]}
-                  />
-                  <Text style={[styles.delta, { left: `${chart.bracket.midPercent}%` }]}>
-                    {delta}
-                  </Text>
-                </View>
-                <Text numberOfLines={1} style={[styles.vs, { width: valueWidth }]}>
-                  vs. mediana
-                </Text>
-              </View>
-            </RisingNote>
-          ) : null}
-          <View style={styles.grid}>
-            <View style={styles.rowTitleSpace} />
-            <View style={[styles.tickArea, { height: TICK_HEIGHT * scale }]}>
-              {chart.ticks.map((tick, index) =>
-                sparseTicks && index % 2 === 1 ? null : (
-                  <Text
-                    key={tick.cents}
-                    style={[
-                      styles.tick,
-                      index > 0 && styles.tickCentered,
-                      { left: `${tick.percent}%` }
-                    ]}
-                  >
-                    {index === 0 && !sparseTicks
-                      ? formatWholeMoney(tick.cents)
-                      : formatWholeAmount(tick.cents)}
-                  </Text>
-                )
-              )}
-            </View>
-            <View style={{ width: valueWidth }} />
-          </View>
-        </View>
-      ) : null}
+      <VerdictBars prices={prices} discountPercent={discountPercent} expired={expired} />
       <RisingNote>
         <Text style={styles.caption}>{verdictCaption(prices)}</Text>
       </RisingNote>

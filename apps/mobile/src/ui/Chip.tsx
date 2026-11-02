@@ -11,12 +11,14 @@ export function Chip({
   label,
   variant = "filter",
   selected = false,
+  large = false,
   onPress,
   onRemove
 }: {
   label: string;
   variant?: "filter" | "product" | "inclusion";
   selected?: boolean;
+  large?: boolean;
   onPress?(): void;
   onRemove?(): void;
 }) {
@@ -28,8 +30,10 @@ export function Chip({
     );
   if (variant === "product")
     return (
-      <View style={[styles.small, styles.product]}>
-        <Text style={[styles.smallText, styles.productText]}>{label}</Text>
+      <View style={[styles.small, styles.product, large && styles.large]}>
+        <Text style={[styles.smallText, styles.productText, large && styles.largeText]}>
+          {label}
+        </Text>
         {onRemove ? (
           <Pressable
             accessibilityRole="button"
@@ -75,6 +79,8 @@ const styles = StyleSheet.create({
   },
   smallText: { ...typography.tag, fontFamily: fonts.condensedBold, fontSize: 16, lineHeight: 18 },
   product: { backgroundColor: colors.cobalt },
+  large: { minHeight: 38, paddingLeft: 12, paddingRight: 10 },
+  largeText: { fontSize: 18, lineHeight: 20 },
   productText: { color: colors.surface },
   inclusion: { backgroundColor: colors.cobaltWash },
   filter: {
