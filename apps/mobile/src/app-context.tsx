@@ -29,7 +29,8 @@ import {
   DEFAULT_PREFERENCES,
   type AnonymousEventName,
   type LocalPreferences,
-  type MobileOffer
+  type MobileOffer,
+  type OfferSort
 } from "./types";
 
 interface AppState {
@@ -40,13 +41,24 @@ interface AppState {
   offline: boolean;
   feedSource: FeedSource;
   error: string | null;
+  /** When the list last came from the network; survives restarts. */
   lastUpdated: string | null;
+  /** Offers found after this moment get the "Nova" mark; fixed during a session. */
+  lastViewedAt: string | null;
   hasMore: boolean;
   loadingMore: boolean;
-  refresh(): Promise<void>;
+  /** Grows with each page that arrives, even one whose offers are all filtered out. */
+  loadedPages: number;
+  sort: OfferSort;
+  changeSort(value: OfferSort): void;
+  refresh(): Promise<FeedSource>;
   loadMore(): Promise<void>;
   savePreferences(value: LocalPreferences): Promise<void>;
-  hideOffer(id: string): Promise<void>;
+  hideOffer(offer: MobileOffer): Promise<void>;
+  /** The last hidden offer, while it can still be undone. */
+  lastHidden: MobileOffer | null;
+  undoHide(): Promise<void>;
+  dismissLastHidden(): void;
   hiddenCount: number;
   showHiddenOffers(): Promise<void>;
   track(
@@ -70,8 +82,15 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [feedSource, setFeedSource] = useState<FeedSource>("network");
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [lastViewedAt, setLastViewedAt] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadedPages, setLoadedPages] = useState(0);
+  const [sort, setSort] = useState<OfferSort>("recent");
+  const [lastHidden, setLastHidden] = useState<MobileOffer | null>(null);
+  const sortRef = useRef<OfferSort>("recent");
+  // A response that arrives after the list was reloaded (or reordered) belongs to the old list.
+  const feedGenerationRef = useRef(0);
   const nextCursorRef = useRef<string | null>(null);
   const loadingMoreRef = useRef(false);
 
@@ -97,34 +116,56 @@ export function AppProvider({ children }: PropsWithChildren) {
   );
 
   const refresh = useCallback(async () => {
+    const generation = ++feedGenerationRef.current;
     setLoading(true);
     nextCursorRef.current = null;
+    let nextCursor: string | null = null;
     const result = await loadFeed(
       database.offerCache,
       async () => {
-        const page = await fetchOfferPage(null);
-        nextCursorRef.current = page.nextCursor;
+        const page = await fetchOfferPage(null, sortRef.current);
+        nextCursor = page.nextCursor;
         return page.offers;
       },
       STARTER_OFFERS
     );
-    setHasMore(result.source === "network" && nextCursorRef.current !== null);
+    if (generation !== feedGenerationRef.current) return result.source;
+    nextCursorRef.current = nextCursor;
+    setHasMore(result.source === "network" && nextCursor !== null);
     setAllOffers(result.offers);
     setOffline(result.source === "cache");
     setFeedSource(result.source);
     setError(result.error);
-    setLastUpdated(new Date().toISOString());
+    if (result.source === "network") {
+      const refreshedAt = new Date().toISOString();
+      setLastUpdated(refreshedAt);
+      void database.setAppState("feed_refreshed_at", refreshedAt);
+    }
+    setLoadedPages((pages) => pages + 1);
     setLoading(false);
     await track("feed_refreshed", { source: result.source });
-  }, [database.offerCache, track]);
+    return result.source;
+  }, [database, track]);
+
+  const changeSort = useCallback(
+    (value: OfferSort) => {
+      if (value === sortRef.current) return;
+      sortRef.current = value;
+      setSort(value);
+      void refresh();
+    },
+    [refresh]
+  );
 
   const loadMore = useCallback(async () => {
     const cursor = nextCursorRef.current;
     if (!cursor || loadingMoreRef.current) return;
+    const generation = feedGenerationRef.current;
     loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
-      const page = await fetchOfferPage(cursor);
+      const page = await fetchOfferPage(cursor, sortRef.current);
+      if (generation !== feedGenerationRef.current) return;
       nextCursorRef.current = page.nextCursor;
       setHasMore(page.nextCursor !== null);
       setAllOffers((current) => {
@@ -132,8 +173,10 @@ export function AppProvider({ children }: PropsWithChildren) {
         void database.offerCache.replace(merged);
         return merged;
       });
+      setLoadedPages((pages) => pages + 1);
     } catch {
       // The current list stays usable; reaching the end of the list retries.
+      if (generation === feedGenerationRef.current) setOffline(true);
     } finally {
       loadingMoreRef.current = false;
       setLoadingMore(false);
@@ -143,16 +186,23 @@ export function AppProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let active = true;
     void (async () => {
-      const [id, savedPreferences, savedHiddenIds] = await Promise.all([
+      const [id, savedPreferences, savedHiddenIds, viewedAt, refreshedAt] = await Promise.all([
         database.ensureInstallation(),
         database.getPreferences(),
-        database.getHiddenIds()
+        database.getHiddenIds(),
+        database.getAppState("feed_last_viewed_at"),
+        database.getAppState("feed_refreshed_at")
       ]);
       if (!active) return;
       setInstallationId(id);
       installationIdRef.current = id;
       setPreferences(savedPreferences);
       setHiddenIds(savedHiddenIds);
+      setLastViewedAt(viewedAt);
+      setLastUpdated(refreshedAt);
+      // The list appears at once; registering and fetching can take long on a bad connection.
+      const cachedOffers = await database.offerCache.read();
+      if (active && cachedOffers.length > 0) setAllOffers(cachedOffers);
       await database.enqueueEvent({
         installationId: id,
         name: "app_opened",
@@ -167,7 +217,9 @@ export function AppProvider({ children }: PropsWithChildren) {
       } catch {
         // Startup remains offline-first; registration and events retry later.
       }
-      await refresh();
+      // Offers stop being new only once a real list has been shown, not after an offline start.
+      if ((await refresh()) === "network")
+        await database.setAppState("feed_last_viewed_at", new Date().toISOString());
     })();
     return () => {
       active = false;
@@ -189,13 +241,23 @@ export function AppProvider({ children }: PropsWithChildren) {
   );
 
   const hideOffer = useCallback(
-    async (id: string) => {
-      await database.hide(id);
-      setHiddenIds((current) => new Set([...current, id]));
-      await track("product_hidden", { offerId: id });
+    async (offer: MobileOffer) => {
+      await database.hide(offer);
+      setHiddenIds((current) => new Set([...current, offer.id]));
+      setLastHidden(offer);
+      await track("product_hidden", { offerId: offer.id });
     },
     [database, track]
   );
+
+  const undoHide = useCallback(async () => {
+    if (!lastHidden) return;
+    setLastHidden(null);
+    await database.unhide(lastHidden.id);
+    setHiddenIds((current) => new Set([...current].filter((id) => id !== lastHidden.id)));
+  }, [database, lastHidden]);
+
+  const dismissLastHidden = useCallback(() => setLastHidden(null), []);
 
   const showHiddenOffers = useCallback(async () => {
     await database.unhideAll();
@@ -204,7 +266,7 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const value = useMemo<AppState>(
     () => ({
-      offers: filterOffers(allOffers, preferences, hiddenIds),
+      offers: filterOffers(allOffers, preferences, hiddenIds, sort),
       preferences,
       installationId,
       loading,
@@ -212,12 +274,19 @@ export function AppProvider({ children }: PropsWithChildren) {
       feedSource,
       error,
       lastUpdated,
+      lastViewedAt,
       hasMore,
       loadingMore,
+      loadedPages,
+      sort,
+      changeSort,
       refresh,
       loadMore,
       savePreferences: save,
       hideOffer,
+      lastHidden,
+      undoHide,
+      dismissLastHidden,
       hiddenCount: hiddenIds.size,
       showHiddenOffers,
       track
@@ -232,12 +301,19 @@ export function AppProvider({ children }: PropsWithChildren) {
       feedSource,
       error,
       lastUpdated,
+      lastViewedAt,
       hasMore,
       loadingMore,
+      loadedPages,
+      sort,
+      changeSort,
       refresh,
       loadMore,
       save,
       hideOffer,
+      lastHidden,
+      undoHide,
+      dismissLastHidden,
       showHiddenOffers,
       track
     ]

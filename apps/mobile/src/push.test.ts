@@ -15,6 +15,8 @@ const offer = {
   mentionCount: 1,
   firstSeenAt: "2026-07-14T12:00:00.000Z",
   lastSeenAt: "2026-07-14T12:00:00.000Z",
+  status: "active",
+  history: { median30dInCents: null, lowest90dInCents: null, discountVsMedianPercent: null },
   url: "https://store.example/rx"
 } satisfies MobileOffer;
 const preferences: LocalPreferences = {

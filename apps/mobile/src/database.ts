@@ -3,12 +3,15 @@ import type { SQLiteDatabase } from "expo-sqlite";
 
 import type { OfferCache } from "./cache";
 import type { PendingEventStore } from "./events";
+import { hiddenOfferSnapshot, withOfferDefaults, type CachedOffer } from "./feed";
 import {
   DEFAULT_PREFERENCES,
   type LocalPreferences,
   type MobileOffer,
   type PendingEvent
 } from "./types";
+
+export type AppStateKey = "feed_last_viewed_at" | "feed_refreshed_at";
 
 export interface MobileDatabase {
   offerCache: OfferCache;
@@ -17,8 +20,11 @@ export interface MobileDatabase {
   getPreferences(): Promise<LocalPreferences>;
   savePreferences(preferences: LocalPreferences): Promise<void>;
   getHiddenIds(): Promise<Set<string>>;
-  hide(id: string): Promise<void>;
+  hide(offer: MobileOffer): Promise<void>;
+  unhide(id: string): Promise<void>;
   unhideAll(): Promise<void>;
+  getAppState(key: AppStateKey): Promise<string | null>;
+  setAppState(key: AppStateKey, value: string): Promise<void>;
   enqueueEvent(event: Omit<PendingEvent, "id" | "attempts">): Promise<string>;
   wasNotificationShown(offerId: string): Promise<boolean>;
   markNotificationShown(offerId: string): Promise<void>;
@@ -35,7 +41,7 @@ export function createMobileDatabase(database: SQLiteDatabase): MobileDatabase {
         const rows = await database.getAllAsync<{ payload: string }>(
           "SELECT payload FROM offer_cache ORDER BY refreshed_at DESC"
         );
-        return rows.map(({ payload }) => parseJson<MobileOffer>(payload));
+        return rows.map(({ payload }) => withOfferDefaults(parseJson<CachedOffer>(payload)));
       },
       async replace(offers) {
         await database.withTransactionAsync(async () => {
@@ -106,15 +112,35 @@ export function createMobileDatabase(database: SQLiteDatabase): MobileDatabase {
       const rows = await database.getAllAsync<{ id: string }>("SELECT id FROM hidden_offers");
       return new Set(rows.map(({ id }) => id));
     },
-    async hide(id) {
+    async hide(offer) {
       await database.runAsync(
-        "INSERT OR IGNORE INTO hidden_offers (id, hidden_at) VALUES (?, ?)",
-        id,
-        new Date().toISOString()
+        `INSERT INTO hidden_offers (id, hidden_at, payload) VALUES (?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET hidden_at = excluded.hidden_at, payload = excluded.payload`,
+        offer.id,
+        new Date().toISOString(),
+        JSON.stringify(hiddenOfferSnapshot(offer))
       );
+    },
+    async unhide(id) {
+      await database.runAsync("DELETE FROM hidden_offers WHERE id = ?", id);
     },
     async unhideAll() {
       await database.runAsync("DELETE FROM hidden_offers");
+    },
+    async getAppState(key) {
+      const row = await database.getFirstAsync<{ value: string }>(
+        "SELECT value FROM app_state WHERE key = ?",
+        key
+      );
+      return row?.value ?? null;
+    },
+    async setAppState(key, value) {
+      await database.runAsync(
+        `INSERT INTO app_state (key, value) VALUES (?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+        key,
+        value
+      );
     },
     async enqueueEvent(event) {
       const id = randomUUID();

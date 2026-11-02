@@ -1,3 +1,4 @@
+import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -9,19 +10,173 @@ import {
   Text,
   View
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { fetchOffer } from "../../src/api";
 import { useApp } from "../../src/app-context";
-import { colors, commonStyles, formatMoney } from "../../src/theme";
+import { formatMoney, formatRelativeTime } from "../../src/format";
+import { conditionName, offerName, subcategorySingularName } from "../../src/labels";
+import { offerState } from "../../src/offer-state";
+import { colors, fonts, MIN_TOUCH_TARGET, radii, typography } from "../../src/theme";
 import type { MobileOffer } from "../../src/types";
+import { Button } from "../../src/ui/Button";
+import { Headline } from "../../src/ui/Headline";
+import { Icon } from "../../src/ui/Icon";
+import { Panel } from "../../src/ui/Panel";
+import { Screen } from "../../src/ui/Screen";
+import { VerdictChart } from "../../src/ui/VerdictChart";
+
+// Opened from a push, the offer may be the first screen: there is nothing to go back to.
+function leave() {
+  if (router.canGoBack()) router.back();
+  else router.replace("/");
+}
+
+function BackBar({ onHide }: { onHide?: () => void }) {
+  return (
+    <View style={styles.bar}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Voltar"
+        onPress={leave}
+        style={styles.back}
+      >
+        <Icon name="arrowBack" strokeWidth={2.2} />
+      </Pressable>
+      {onHide ? (
+        <Pressable accessibilityRole="button" onPress={onHide} style={styles.hide}>
+          <Icon name="eyeOff" size={20} />
+          <Text style={styles.hideText}>Ocultar</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function CouponButton({ coupon }: { coupon: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={copied ? "Cupom copiado" : `Copiar cupom ${coupon}`}
+      hitSlop={6}
+      onPress={() => {
+        void Clipboard.setStringAsync(coupon);
+        setCopied(true);
+      }}
+      style={styles.coupon}
+    >
+      <Text numberOfLines={1} style={styles.couponText}>
+        {copied ? "Copiado" : `Cupom ${coupon}`}
+      </Text>
+      <Icon name="copy" size={16} strokeWidth={2.2} />
+    </Pressable>
+  );
+}
+
+function OfferDetails({ offer }: { offer: MobileOffer }) {
+  const { hideOffer, track } = useApp();
+  const insets = useSafeAreaInsets();
+  const now = new Date();
+  const expired = offerState(offer, now) === "expired";
+  const isDemo = offer.id.startsWith("demo-");
+  const openStore = () => {
+    if (!offer.url) return;
+    void track("offer_clicked", { offerId: offer.id });
+    void Linking.openURL(offer.url);
+  };
+  const storeLabel = `Abrir na ${offer.store.name}`;
+  const noLink = isDemo ? "Link indisponível na demonstração" : "Link indisponível";
+  return (
+    <Screen>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <BackBar onHide={() => void hideOffer(offer).then(leave)} />
+        <View style={styles.title}>
+          <Text style={styles.kicker}>
+            {offer.product.vendor} · {subcategorySingularName(offer.product.category)}
+          </Text>
+          <Headline variant="productName">{offerName(offer.product)}</Headline>
+        </View>
+        {expired ? (
+          <View accessibilityRole="alert" style={styles.expired}>
+            <Text style={styles.expiredTitle}>Esta oferta expirou</Text>
+            <Text style={styles.expiredBody}>
+              Faz mais de 72 horas que não encontramos esta oferta. O preço e o estoque podem ter
+              mudado.
+            </Text>
+          </View>
+        ) : null}
+        <View style={styles.priceBlock}>
+          {expired ? <Text style={styles.kicker}>Último preço encontrado</Text> : null}
+          <Text style={typography.price}>{formatMoney(offer.effectivePriceCents)}</Text>
+          <View style={styles.priceMeta}>
+            <Text style={styles.found}>
+              à vista · encontrada{" "}
+              {formatRelativeTime(expired ? offer.lastSeenAt : offer.firstSeenAt, now)}
+            </Text>
+            {offer.coupon ? <CouponButton coupon={offer.coupon} /> : null}
+          </View>
+        </View>
+        <View style={styles.verdict}>
+          <VerdictChart
+            prices={{
+              priceCents: offer.effectivePriceCents,
+              median30dInCents: offer.history.median30dInCents,
+              lowest90dInCents: offer.history.lowest90dInCents
+            }}
+            label={offer.label}
+            qualityScore={offer.qualityScore}
+            discountPercent={offer.history.discountVsMedianPercent}
+            expired={expired}
+          />
+        </View>
+        <Panel style={styles.facts}>
+          <View style={styles.fact}>
+            <Text style={styles.factLabel}>Loja</Text>
+            <Text style={styles.factValue}>{offer.store.name}</Text>
+            <Text style={styles.factHint}>{offer.store.domain}</Text>
+          </View>
+          <View style={[styles.fact, styles.factDivided]}>
+            <Text style={styles.factLabel}>Condição</Text>
+            <Text style={styles.factValue}>{conditionName(offer.condition)}</Text>
+          </View>
+        </Panel>
+        {isDemo ? <Text style={styles.illustrative}>Exemplo ilustrativo</Text> : null}
+      </ScrollView>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+        {expired ? (
+          <>
+            <Button
+              label={`Ofertas válidas de ${offer.product.model}`}
+              icon="arrowForward"
+              onPress={() =>
+                router.dismissTo({ pathname: "/", params: { model: offer.product.model } })
+              }
+            />
+            {offer.url ? (
+              <Button label={`${storeLabel} mesmo assim`} variant="outline" onPress={openStore} />
+            ) : null}
+          </>
+        ) : (
+          <Button
+            label={offer.url ? storeLabel : noLink}
+            icon="external"
+            disabled={!offer.url}
+            onPress={openStore}
+          />
+        )}
+      </View>
+    </Screen>
+  );
+}
 
 export default function OfferDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { offers, hideOffer, track } = useApp();
+  const { offers, track } = useApp();
   const listed = offers.find((item) => item.id === id);
-  // A pushed offer may not be on the loaded feed pages yet.
+  // A pushed offer may not be on the loaded feed pages yet, or may have expired.
   const [fetched, setFetched] = useState<MobileOffer | null>(null);
-  const [fetching, setFetching] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const offer = listed ?? fetched;
 
   useEffect(() => {
@@ -45,91 +200,117 @@ export default function OfferDetailsScreen() {
     };
   }, [id, listed]);
 
-  if (!offer && fetching)
-    return (
-      <View style={[commonStyles.screen, commonStyles.content]}>
-        <ActivityIndicator color={colors.accent} />
-      </View>
-    );
-
-  if (!offer)
-    return (
-      <View style={[commonStyles.screen, commonStyles.content]}>
-        <View style={commonStyles.card}>
-          <Text style={styles.model}>Oferta indisponível</Text>
-          <Text style={commonStyles.subtitle}>
-            Ela pode ter sido ocultada pelos seus filtros ou ainda não estar no cache local.
-          </Text>
-        </View>
-      </View>
-    );
+  if (offer) return <OfferDetails offer={offer} />;
 
   return (
-    <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.content}>
-      <Text style={commonStyles.eyebrow}>{offer.label.replace("_", " ")}</Text>
-      <Text style={commonStyles.title}>{offer.product.model}</Text>
-      <Text style={commonStyles.subtitle}>
-        {offer.product.vendor} ·{" "}
-        {offer.product.vramGb ? `${offer.product.vramGb} GB` : "VRAM não informada"}
-      </Text>
-      <View style={commonStyles.card}>
-        <Text style={styles.price}>{formatMoney(offer.effectivePriceCents)}</Text>
-        {offer.lowestPriceCents ? (
-          <Text style={styles.meta}>Menor observado: {formatMoney(offer.lowestPriceCents)}</Text>
-        ) : null}
-        <View style={styles.divider} />
-        <Text style={styles.score}>{offer.qualityScore}/100</Text>
-        <Text style={styles.model}>{offer.scoreSummary}</Text>
-        <Text style={styles.meta}>
-          {offer.mentionCount} menção(ões) · última observação{" "}
-          {new Date(offer.lastSeenAt).toLocaleString("pt-BR")}
-        </Text>
-      </View>
-      <View style={commonStyles.card}>
-        <Text style={styles.model}>{offer.store.name}</Text>
-        <Text style={styles.meta}>{offer.store.domain}</Text>
-        {offer.coupon ? <Text style={styles.coupon}>Cupom: {offer.coupon}</Text> : null}
-        <Text style={styles.meta}>Condição: {offer.condition ?? "não informada"}</Text>
-      </View>
-      <Pressable
-        style={[commonStyles.button, !offer.url && styles.buttonDisabled]}
-        disabled={!offer.url}
-        onPress={() => {
-          if (!offer.url) return;
-          void track("offer_clicked", { offerId: offer.id });
-          void Linking.openURL(offer.url);
-        }}
-      >
-        <Text style={commonStyles.buttonText}>
-          {offer.url ? "Abrir na loja" : "Link indisponível na demonstração"}
-        </Text>
-      </Pressable>
-      <Pressable
-        style={commonStyles.secondaryButton}
-        onPress={() => {
-          void hideOffer(offer.id).then(() => router.back());
-        }}
-      >
-        <Text style={commonStyles.secondaryButtonText}>Ocultar esta oferta</Text>
-      </Pressable>
-    </ScrollView>
+    <Screen>
+      <BackBar />
+      {fetching ? (
+        <ActivityIndicator color={colors.cobalt} style={styles.loading} />
+      ) : (
+        <View style={styles.unavailable}>
+          <Headline>Não conseguimos abrir esta oferta</Headline>
+          <Text style={styles.unavailableBody}>
+            Ela pode ter saído da lista, ou o aparelho está sem conexão. Tente de novo em instantes.
+          </Text>
+        </View>
+      )}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  price: { color: colors.text, fontSize: 34, fontWeight: "900", letterSpacing: -1 },
-  model: { color: colors.text, fontSize: 17, fontWeight: "800", lineHeight: 24 },
-  meta: { color: colors.muted, lineHeight: 20 },
-  score: { color: colors.accent, fontSize: 22, fontWeight: "900" },
-  divider: { backgroundColor: colors.border, height: 1 },
-  coupon: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.accentDark,
-    borderRadius: 8,
-    color: colors.accent,
-    fontWeight: "800",
-    paddingHorizontal: 10,
-    paddingVertical: 7
+  content: { paddingBottom: 24 },
+  bar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: MIN_TOUCH_TARGET,
+    paddingHorizontal: 8
   },
-  buttonDisabled: { opacity: 0.55 }
+  back: {
+    alignItems: "center",
+    height: MIN_TOUCH_TARGET,
+    justifyContent: "center",
+    width: MIN_TOUCH_TARGET
+  },
+  hide: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+    minHeight: MIN_TOUCH_TARGET,
+    paddingHorizontal: 12
+  },
+  hideText: { color: colors.ink, fontFamily: fonts.condensedSemiBold, fontSize: 16 },
+  title: { gap: 4, paddingHorizontal: 24, paddingTop: 4 },
+  kicker: { color: colors.slate, fontFamily: fonts.condensedSemiBold, fontSize: 15 },
+  expired: {
+    backgroundColor: colors.ink,
+    borderRadius: radii.panel,
+    gap: 3,
+    marginHorizontal: 24,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14
+  },
+  expiredTitle: {
+    color: colors.surface,
+    fontFamily: fonts.condensedBold,
+    fontSize: 19,
+    lineHeight: 21
+  },
+  expiredBody: { ...typography.caption, color: colors.inkMist },
+  priceBlock: { gap: 6, paddingHorizontal: 24, paddingTop: 16 },
+  priceMeta: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "space-between"
+  },
+  found: { ...typography.bodySm, color: colors.slate, flexShrink: 1 },
+  coupon: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.ink,
+    borderRadius: radii.chip,
+    borderStyle: "dashed",
+    borderWidth: 1.5,
+    flexDirection: "row",
+    gap: 8,
+    minHeight: 36,
+    paddingLeft: 12,
+    paddingRight: 10
+  },
+  couponText: {
+    color: colors.ink,
+    flexShrink: 1,
+    fontFamily: fonts.condensedBold,
+    fontSize: 16
+  },
+  verdict: { marginTop: 18 },
+  facts: { flexDirection: "row", marginHorizontal: 24, marginTop: 16 },
+  fact: { flex: 1, gap: 2, paddingHorizontal: 14, paddingVertical: 12 },
+  factDivided: { borderLeftColor: colors.hairline, borderLeftWidth: 1 },
+  factLabel: { color: colors.slate, fontFamily: fonts.condensedSemiBold, fontSize: 13 },
+  factValue: { color: colors.ink, fontFamily: fonts.condensedBold, fontSize: 19, lineHeight: 22 },
+  factHint: { color: colors.slate, fontFamily: fonts.body, fontSize: 12 },
+  illustrative: {
+    color: colors.slate,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    marginHorizontal: 28,
+    marginTop: 8
+  },
+  footer: {
+    backgroundColor: colors.surface,
+    borderTopColor: colors.line,
+    borderTopWidth: 1,
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingTop: 12
+  },
+  loading: { marginTop: 48 },
+  unavailable: { gap: 10, paddingHorizontal: 24, paddingTop: 8 },
+  unavailableBody: { ...typography.body, color: colors.slate }
 });

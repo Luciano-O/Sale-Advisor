@@ -11,12 +11,16 @@
     "typecheck": "expo customize tsconfig.json && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@expo-google-fonts/barlow": "^0.4.1",
+    "@expo-google-fonts/barlow-condensed": "^0.4.1",
     "@sale-advisor/contracts": "workspace:*",
     "expo": "57.0.4",
+    "expo-clipboard": "~57.0.2",
     "expo-constants": "57.0.3",
     "expo-crypto": "57.0.0",
     "expo-dev-client": "57.0.5",
     "expo-device": "57.0.0",
+    "expo-font": "~57.0.4",
     "expo-linking": "57.0.2",
     "expo-notifications": "57.0.3",
     "expo-router": "57.0.4",
@@ -29,7 +33,8 @@
     "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "4.5.0",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "4.25.2"
+    "react-native-screens": "4.25.2",
+    "react-native-svg": "15.15.4"
   },
   "devDependencies": {
     "@sale-advisor/config": "workspace:*",

@@ -188,7 +188,7 @@ components:
     rounded: "{rounded.sheet}"
 ---
 
-<!-- Fonte da verdade: o canvas de design aprovado (https://claude.ai/artifact/JzYhnGbHRsNPLzQ6FDGyq2), etapa por etapa, em 2026-10-29. O código do app ainda usa o tema anterior (escuro com verde menta, em src/theme.ts) até a implementação; não use esse tema como referência. -->
+<!-- Fonte da verdade: o canvas de design aprovado (https://claude.ai/artifact/JzYhnGbHRsNPLzQ6FDGyq2), etapa por etapa, em 2026-10-29. Os tokens estão em src/theme.ts e os componentes em src/ui/. -->
 
 # Design System: Sale Advisor
 

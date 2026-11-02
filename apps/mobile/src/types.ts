@@ -1,3 +1,7 @@
+import type { OfferHistory, OfferSort } from "@sale-advisor/contracts";
+
+export type { OfferSort };
+
 export type ScoreLabel = "normal" | "boa" | "muito_boa" | "excepcional";
 
 export interface MobileOffer {
@@ -15,7 +19,17 @@ export interface MobileOffer {
   mentionCount: number;
   firstSeenAt: string;
   lastSeenAt: string;
+  /** The feed lists only active offers; the detail also opens expired ones. */
+  status: "active" | "expired";
+  history: OfferHistory;
   url: string | null;
+}
+
+/** What the hidden offers list shows, even after the offer itself is gone. */
+export interface HiddenOfferSnapshot {
+  name: string;
+  storeName: string;
+  priceCents: number;
 }
 
 export interface LocalPreferences {

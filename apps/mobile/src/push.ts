@@ -1,3 +1,4 @@
+import { EMPTY_HISTORY } from "./feed";
 import { isOfferRelevant } from "./filters";
 import type { LocalPreferences, MobileOffer, ScoreLabel } from "./types";
 
@@ -65,6 +66,8 @@ function offerFromSummary(offerId: string, value: unknown): MobileOffer | null {
     mentionCount: 1,
     firstSeenAt: now,
     lastSeenAt: now,
+    status: "active",
+    history: EMPTY_HISTORY,
     url: null
   };
 }

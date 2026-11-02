@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import { type CatalogModel, fetchCatalog } from "../src/api";
 import { useApp } from "../src/app-context";
 import { modelChoices, toggleModel } from "../src/selection";
-import { colors, commonStyles } from "../src/theme";
+import { colors, fonts, radii, typography } from "../src/theme";
 import type { ScoreLabel } from "../src/types";
 
 const labels: ScoreLabel[] = ["normal", "boa", "muito_boa", "excepcional"];
@@ -154,7 +154,7 @@ function Field({
       <TextInput
         {...input}
         style={commonStyles.input}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={colors.slate}
         autoCapitalize="characters"
       />
       <Text style={styles.helper}>{helper}</Text>
@@ -162,28 +162,64 @@ function Field({
   );
 }
 
+const commonStyles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.ground },
+  content: { padding: 20, gap: 16 },
+  eyebrow: typography.section,
+  title: typography.headline,
+  subtitle: { ...typography.body, color: colors.slate },
+  card: {
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: radii.panel,
+    padding: 16,
+    gap: 10
+  },
+  button: {
+    alignItems: "center",
+    backgroundColor: colors.ink,
+    borderRadius: radii.control,
+    justifyContent: "center",
+    minHeight: 56,
+    paddingHorizontal: 22
+  },
+  buttonText: { ...typography.button, color: colors.surface },
+  input: {
+    ...typography.body,
+    backgroundColor: colors.surface,
+    borderColor: colors.ink,
+    borderRadius: radii.control,
+    borderWidth: 2,
+    minHeight: 52,
+    paddingHorizontal: 16
+  }
+});
+
 const styles = StyleSheet.create({
   field: { gap: 7 },
-  fieldLabel: { color: colors.text, fontSize: 15, fontWeight: "800" },
-  helper: { color: colors.muted, fontSize: 12, lineHeight: 17 },
+  fieldLabel: { ...typography.titleSm },
+  helper: { ...typography.caption, color: colors.slate },
   labels: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   pill: {
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 9
+    borderColor: colors.ink,
+    borderRadius: radii.chip,
+    borderWidth: 1.5,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 12
   },
-  pillActive: { backgroundColor: colors.accentDark, borderColor: colors.accent },
-  pillText: { color: colors.muted, fontSize: 12, fontWeight: "800", textTransform: "uppercase" },
-  pillTextActive: { color: colors.accent },
+  pillActive: { backgroundColor: colors.cobalt, borderColor: colors.cobalt },
+  pillText: { color: colors.ink, fontFamily: fonts.condensedBold, fontSize: 16 },
+  pillTextActive: { color: colors.surface },
   secondaryButton: {
     alignItems: "center",
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 12
+    borderColor: colors.ink,
+    borderRadius: radii.control,
+    borderWidth: 1.5,
+    justifyContent: "center",
+    minHeight: 48
   },
-  secondaryButtonText: { color: colors.text, fontWeight: "700" },
-  installation: { color: colors.muted, fontSize: 10, textAlign: "center" }
+  secondaryButtonText: { ...typography.buttonSm },
+  installation: { ...typography.caption, color: colors.slate, textAlign: "center" }
 });
