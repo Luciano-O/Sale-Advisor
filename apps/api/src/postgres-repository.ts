@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 
+import { offerHistoryFromMetrics, type OfferSort } from "@sale-advisor/contracts";
 import { createDatabase } from "@sale-advisor/database";
 import { Queue } from "bullmq";
 
@@ -10,7 +11,8 @@ import type {
   ApiRepository,
   ImportRequest,
   IntegrationHealth,
-  PublicOffer
+  PublicOffer,
+  PublicStore
 } from "./repository.js";
 
 interface OfferRow {
@@ -30,6 +32,8 @@ interface OfferRow {
   firstSeenAt: Date;
   lastSeenAt: Date;
   mentionCount: number;
+  status: PublicOffer["status"];
+  metrics: unknown;
   label: string | null;
   qualityScore: number | null;
   confidence: string | null;
@@ -102,29 +106,39 @@ export class PostgresApiRepository implements ApiRepository {
 
   async listOffers(input: {
     limit: number;
+    sort?: OfferSort | undefined;
     cursor?: string | undefined;
     minimumLabel?: string | undefined;
   }) {
-    const cursor = input.cursor ? decodeCursor(input.cursor) : null;
-    // Keyset pagination over the full feed ordering (label, quality, first seen, id), all
-    // descending, so pages never skip or repeat offers. first_seen_at travels as PostgreSQL
-    // text because postgres.js would truncate a timestamptz parameter to milliseconds.
+    const sort = input.sort ?? "recent";
+    const cursor = input.cursor ? decodeCursor(input.cursor, sort) : null;
+    // Keyset pagination over (hasDiscount, discountKey, first seen, id), all descending, so
+    // pages never skip or repeat offers. The "recent" ordering zeroes both discount keys and
+    // "discount" puts offers without history last. first_seen_at and the discount travel as
+    // PostgreSQL text because postgres.js would truncate a timestamptz to milliseconds and a
+    // numeric to a float.
     const rows = await this.connection.client<(OfferRow & FeedKey)[]>`
       select * from (
         select o.id, p.id as "productId", p.vendor, p.model, p.vram_gb as "vramGb",
           s.name as "storeName", s.domain, s.reliability,
           o.current_price_in_cents as "priceInCents", o.lowest_price_in_cents as "lowestPriceInCents",
           o.coupon, o.condition, o.normalized_url as url, o.first_seen_at as "firstSeenAt",
-          o.last_seen_at as "lastSeenAt", o.mention_count as "mentionCount",
+          o.last_seen_at as "lastSeenAt", o.mention_count as "mentionCount", o.status,
+          coalesce(score.metrics, '{}'::jsonb) as metrics,
           coalesce(score.label, 'normal') as label, coalesce(score.quality_score, 0) as "qualityScore",
           coalesce(score.confidence, 'low') as confidence, coalesce(score.reasons, '[]'::jsonb) as reasons,
           array_position(array['normal','boa','muito_boa','excepcional'], coalesce(score.label, 'normal')) as "labelRank",
+          case when ${sort} = 'discount' and score.discount is not null then 1 else 0 end as "hasDiscount",
+          case when ${sort} = 'discount' then coalesce(score.discount, 0) else 0 end as "discountKey",
           o.first_seen_at::text as "firstSeenAtKey"
         from offers o
         join products p on p.id = o.product_id
         join stores s on s.id = o.store_id
         left join lateral (
-          select label, quality_score, confidence, reasons from offer_scores
+          select label, quality_score, confidence, reasons, metrics,
+            case when jsonb_typeof(metrics->'deviationFromMedian30dPercent') = 'number'
+              then 0 - (metrics->>'deviationFromMedian30dPercent')::numeric end as discount
+          from offer_scores
           where offer_id = o.id order by created_at desc limit 1
         ) score on true
         where o.status = 'active' and s.blocked_at is null
@@ -132,10 +146,10 @@ export class PostgresApiRepository implements ApiRepository {
       where (${input.minimumLabel ?? null}::text is null or
           "labelRank" >= array_position(array['normal','boa','muito_boa','excepcional'], ${input.minimumLabel ?? "normal"}))
         and (${cursor ? "1" : null}::text is null
-          or ("labelRank", "qualityScore", "firstSeenAt", id) <
-            (${cursor?.labelRank ?? null}::int, ${cursor?.qualityScore ?? null}::int,
+          or ("hasDiscount", "discountKey", "firstSeenAt", id) <
+            (${cursor?.hasDiscount ?? null}::int, ${cursor?.discountKey ?? null}::text::numeric,
              ${cursor?.firstSeenAt ?? null}::text::timestamptz, ${cursor?.id ?? null}::uuid))
-      order by "labelRank" desc, "qualityScore" desc, "firstSeenAt" desc, id desc
+      order by "hasDiscount" desc, "discountKey" desc, "firstSeenAt" desc, id desc
       limit ${input.limit + 1}
     `;
     const hasNext = rows.length > input.limit;
@@ -143,7 +157,7 @@ export class PostgresApiRepository implements ApiRepository {
     const last = page.at(-1);
     return {
       items: page.map(mapOffer),
-      nextCursor: hasNext && last ? encodeCursor(last) : null
+      nextCursor: hasNext && last ? encodeCursor(sort, last) : null
     };
   }
 
@@ -156,19 +170,30 @@ export class PostgresApiRepository implements ApiRepository {
   }
 
   async findOffer(id: string) {
+    // Expired offers stay reachable so an old notification opens "Esta oferta expirou".
+    // Merged and split offers no longer exist on their own and are not found.
     const rows = await this.connection.client<OfferRow[]>`
       select o.id, p.id as "productId", p.vendor, p.model, p.vram_gb as "vramGb",
         s.name as "storeName", s.domain, s.reliability,
         o.current_price_in_cents as "priceInCents", o.lowest_price_in_cents as "lowestPriceInCents",
         o.coupon, o.condition, o.normalized_url as url, o.first_seen_at as "firstSeenAt",
-        o.last_seen_at as "lastSeenAt", o.mention_count as "mentionCount",
+        o.last_seen_at as "lastSeenAt", o.mention_count as "mentionCount", o.status,
+        coalesce(score.metrics, '{}'::jsonb) as metrics,
         coalesce(score.label, 'normal') as label, coalesce(score.quality_score, 0) as "qualityScore",
         coalesce(score.confidence, 'low') as confidence, coalesce(score.reasons, '[]'::jsonb) as reasons
       from offers o join products p on p.id = o.product_id join stores s on s.id = o.store_id
-      left join lateral (select label, quality_score, confidence, reasons from offer_scores where offer_id = o.id order by created_at desc limit 1) score on true
-      where o.id = ${id} and o.status = 'active' and s.blocked_at is null limit 1
+      left join lateral (select label, quality_score, confidence, reasons, metrics from offer_scores where offer_id = o.id order by created_at desc limit 1) score on true
+      where o.id = ${id} and o.status in ('active', 'expired') and s.blocked_at is null limit 1
     `;
     return rows[0] ? mapOffer(rows[0]) : null;
+  }
+
+  async listStores(): Promise<PublicStore[]> {
+    return this.connection.client<PublicStore[]>`
+      select s.name, s.domain from stores s
+      where s.blocked_at is null and exists (select 1 from offers o where o.store_id = s.id)
+      order by s.name, s.domain
+    `;
   }
 
   async upsertInstallation(input: { id: string; platform: string; appVersion: string }) {
@@ -548,6 +573,8 @@ function mapOffer(row: OfferRow): PublicOffer {
     firstSeenAt: row.firstSeenAt.toISOString(),
     lastSeenAt: row.lastSeenAt.toISOString(),
     mentionCount: row.mentionCount,
+    status: row.status,
+    history: offerHistoryFromMetrics(row.metrics),
     score: {
       label: row.label ?? "normal",
       qualityScore: row.qualityScore ?? 0,
@@ -558,32 +585,36 @@ function mapOffer(row: OfferRow): PublicOffer {
 }
 
 interface FeedKey {
-  labelRank: number;
-  qualityScore: number;
+  hasDiscount: number;
+  discountKey: string;
   firstSeenAtKey: string;
   id: string;
 }
 
 interface FeedCursor {
-  labelRank: number;
-  qualityScore: number;
+  sort: OfferSort;
+  hasDiscount: number;
+  discountKey: string;
   firstSeenAt: string;
   id: string;
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NUMERIC_PATTERN = /^-?\d+(\.\d+)?$/;
 
-function encodeCursor(row: FeedKey) {
+function encodeCursor(sort: OfferSort, row: FeedKey) {
   const cursor: FeedCursor = {
-    labelRank: row.labelRank,
-    qualityScore: row.qualityScore,
+    sort,
+    hasDiscount: row.hasDiscount,
+    discountKey: String(row.discountKey),
     firstSeenAt: row.firstSeenAtKey,
     id: row.id
   };
   return Buffer.from(JSON.stringify(cursor)).toString("base64url");
 }
 
-function decodeCursor(value: string): FeedCursor {
+/** A cursor only continues the ordering that produced it. */
+function decodeCursor(value: string, sort: OfferSort): FeedCursor {
   let parsed: Partial<Record<keyof FeedCursor, unknown>>;
   try {
     parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as typeof parsed;
@@ -592,8 +623,10 @@ function decodeCursor(value: string): FeedCursor {
   }
   if (
     !parsed ||
-    !Number.isSafeInteger(parsed.labelRank) ||
-    !Number.isSafeInteger(parsed.qualityScore) ||
+    parsed.sort !== sort ||
+    (parsed.hasDiscount !== 0 && parsed.hasDiscount !== 1) ||
+    typeof parsed.discountKey !== "string" ||
+    !NUMERIC_PATTERN.test(parsed.discountKey) ||
     typeof parsed.firstSeenAt !== "string" ||
     Number.isNaN(Date.parse(parsed.firstSeenAt)) ||
     typeof parsed.id !== "string" ||
@@ -601,8 +634,9 @@ function decodeCursor(value: string): FeedCursor {
   )
     throw new InvalidCursorError();
   return {
-    labelRank: parsed.labelRank as number,
-    qualityScore: parsed.qualityScore as number,
+    sort,
+    hasDiscount: parsed.hasDiscount,
+    discountKey: parsed.discountKey,
     firstSeenAt: parsed.firstSeenAt,
     id: parsed.id
   };

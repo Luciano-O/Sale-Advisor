@@ -186,6 +186,104 @@ describe("MVP API", () => {
       .expect(200);
   });
 
+  it("shows each offer with its price history and orders the feed by most recent by default", async () => {
+    context.repository.publishOffer({ index: 0, discountVsMedianPercent: 5 });
+    context.repository.publishOffer({ index: 1, discountVsMedianPercent: 20 });
+    context.repository.publishOffer({ index: 2, discountVsMedianPercent: null });
+
+    const { body } = await request(context.app.getHttpServer()).get("/v1/offers").expect(200);
+
+    expect(body.items.map(({ firstSeenAt }: { firstSeenAt: string }) => firstSeenAt)).toEqual([
+      "2026-07-13T12:00:00.000Z",
+      "2026-07-12T12:00:00.000Z",
+      "2026-07-11T12:00:00.000Z"
+    ]);
+    expect(body.items[1]).toMatchObject({
+      status: "active",
+      history: { median30dInCents: 200000, lowest90dInCents: 185000, discountVsMedianPercent: 20 }
+    });
+    expect(body.items[0].history.discountVsMedianPercent).toBeNull();
+  });
+
+  it("orders by biggest discount on request, offers without history last", async () => {
+    context.repository.publishOffer({ index: 0, discountVsMedianPercent: 5 });
+    context.repository.publishOffer({ index: 1, discountVsMedianPercent: null });
+    context.repository.publishOffer({ index: 2, discountVsMedianPercent: 20 });
+    context.repository.publishOffer({ index: 3, discountVsMedianPercent: -3 });
+
+    const { body } = await request(context.app.getHttpServer())
+      .get("/v1/offers?sort=discount")
+      .expect(200);
+
+    expect(
+      body.items.map(
+        ({ history }: { history: { discountVsMedianPercent: number | null } }) =>
+          history.discountVsMedianPercent
+      )
+    ).toEqual([20, 5, -3, null]);
+    await request(context.app.getHttpServer()).get("/v1/offers?sort=label").expect(400);
+  });
+
+  it("pages each ordering without gaps or repeats and rejects a cursor from the other one", async () => {
+    for (let index = 0; index < 5; index += 1)
+      context.repository.publishOffer({ index, discountVsMedianPercent: index % 2 ? 10 : null });
+    const server = context.app.getHttpServer();
+
+    for (const sort of ["recent", "discount"]) {
+      const single = await request(server).get(`/v1/offers?sort=${sort}&limit=50`).expect(200);
+      const paged: string[] = [];
+      let cursor: string | null = null;
+      do {
+        const page: { body: { items: Array<{ id: string }>; nextCursor: string | null } } =
+          await request(server)
+            .get("/v1/offers")
+            .query({ sort, limit: 2, ...(cursor ? { cursor } : {}) })
+            .expect(200);
+        paged.push(...page.body.items.map(({ id }) => id));
+        cursor = page.body.nextCursor;
+      } while (cursor);
+      expect(paged).toEqual(single.body.items.map(({ id }: { id: string }) => id));
+    }
+
+    const recent = await request(server).get("/v1/offers?limit=2").expect(200);
+    await request(server)
+      .get("/v1/offers")
+      .query({ sort: "discount", cursor: recent.body.nextCursor })
+      .expect(400);
+  });
+
+  it("opens an expired offer in the detail but keeps it out of the feed", async () => {
+    context.repository.publishOffer({ index: 0 });
+    context.repository.publishOffer({ index: 1, status: "expired" });
+    const server = context.app.getHttpServer();
+
+    const feed = await request(server).get("/v1/offers").expect(200);
+    expect(feed.body.items).toHaveLength(1);
+    expect(feed.body.items[0].status).toBe("active");
+
+    const expiredId = "00000000-0000-4000-8000-000000000002";
+    const detail = await request(server).get(`/v1/offers/${expiredId}`).expect(200);
+    expect(detail.body).toMatchObject({ id: expiredId, status: "expired" });
+  });
+
+  it("lists the stores the app can block, each once and by name", async () => {
+    context.repository.publishOffer({ index: 0, store: { name: "Loja B", domain: "b.example" } });
+    context.repository.publishOffer({ index: 1, store: { name: "Loja A", domain: "a.example" } });
+    context.repository.publishOffer({ index: 2, store: { name: "Loja B", domain: "b.example" } });
+
+    await request(context.app.getHttpServer())
+      .get("/v1/stores")
+      .expect(200)
+      .expect(({ body }) =>
+        expect(body).toEqual({
+          items: [
+            { name: "Loja A", domain: "a.example" },
+            { name: "Loja B", domain: "b.example" }
+          ]
+        })
+      );
+  });
+
   it("lists each GPU model seen in offers once for the preferences screen", async () => {
     for (let index = 0; index < 3; index += 1) context.repository.publishOffer({ index });
 

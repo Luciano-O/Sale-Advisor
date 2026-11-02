@@ -8,6 +8,13 @@ export interface OfferNotificationSummary {
   storeDomain: string;
   priceCents: number;
   label: string;
+  // The verdict line of the alert and its actions. Optional because deliveries recorded before
+  // they existed lack them; null when the history or the offer has no value.
+  discountVsMedianPercent?: number | null;
+  median30dInCents?: number | null;
+  lowest90dInCents?: number | null;
+  coupon?: string | null;
+  url?: string | null;
 }
 
 export interface NotificationPayload {
@@ -17,15 +24,31 @@ export interface NotificationPayload {
 
 // An offer still undelivered after a day is no longer worth a notification.
 const FCM_TTL_MS = 24 * 60 * 60 * 1_000;
+// FCM rejects data payloads over 4 KB, counting keys and values.
+const FCM_DATA_LIMIT_BYTES = 4_096;
+
+function dataSize(data: Record<string, string>): number {
+  return Object.entries(data).reduce(
+    (total, [key, value]) => total + Buffer.byteLength(key) + Buffer.byteLength(value),
+    0
+  );
+}
 
 /** FCM data payloads only carry strings; the summary travels as JSON. */
 export function buildFcmMessage(token: string, payload: NotificationPayload) {
+  const data: Record<string, string> = {
+    offerId: payload.offerId,
+    ...(payload.summary ? { offer: JSON.stringify(payload.summary) } : {})
+  };
+  // Only the store link can be long; without it "Abrir na loja" falls back to the detail.
+  if (payload.summary && dataSize(data) > FCM_DATA_LIMIT_BYTES) {
+    const summary = { ...payload.summary };
+    delete summary.url;
+    data.offer = JSON.stringify(summary);
+  }
   return {
     token,
-    data: {
-      offerId: payload.offerId,
-      ...(payload.summary ? { offer: JSON.stringify(payload.summary) } : {})
-    },
+    data,
     android: { priority: "high" as const, ttl: FCM_TTL_MS }
   };
 }

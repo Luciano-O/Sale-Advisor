@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { Injectable } from "@nestjs/common";
 import type { OnApplicationShutdown } from "@nestjs/common";
+import { offerHistoryFromMetrics } from "@sale-advisor/contracts";
 import { createDatabase } from "@sale-advisor/database";
 import {
   applyAdminOverrides,
@@ -88,6 +89,9 @@ interface NotificationCandidateRow {
   store_name: string;
   store_domain: string;
   price_cents: number;
+  coupon: string | null;
+  url: string | null;
+  metrics: unknown;
 }
 
 interface NotificationTargetRow {
@@ -482,11 +486,12 @@ export class PersistentPipelineService implements OnApplicationShutdown {
     const rows = await this.connection.client<NotificationCandidateRow[]>`
       select rm.notify_eligible, o.id as offer_id, o.last_seen_at, s.blocked_at,
         coalesce(sc.label, 'normal') as label, p.id as product_id, p.vendor, p.model, p.vram_gb,
-        s.name as store_name, s.domain as store_domain, o.current_price_in_cents as price_cents
+        s.name as store_name, s.domain as store_domain, o.current_price_in_cents as price_cents,
+        o.coupon, o.normalized_url as url, coalesce(sc.metrics, '{}'::jsonb) as metrics
       from raw_messages rm join offer_mentions om on om.raw_message_id = rm.id and om.active
       join offers o on o.id = om.offer_id join stores s on s.id = o.store_id
       join products p on p.id = o.product_id
-      left join lateral (select label from offer_scores where offer_id = o.id order by created_at desc limit 1) sc on true
+      left join lateral (select label, metrics from offer_scores where offer_id = o.id order by created_at desc limit 1) sc on true
       where rm.id = ${rawMessageId} limit 1
     `;
     const row = rows[0];
@@ -503,6 +508,7 @@ export class PersistentPipelineService implements OnApplicationShutdown {
     `;
     const rank: Record<string, number> = { normal: 0, boa: 1, muito_boa: 2, excepcional: 3 };
     // The app filters and shows the offer from this summary without fetching it.
+    const history = offerHistoryFromMetrics(row.metrics);
     const payload: NotificationPayload = {
       offerId: row.offer_id,
       summary: {
@@ -513,7 +519,12 @@ export class PersistentPipelineService implements OnApplicationShutdown {
         storeName: row.store_name,
         storeDomain: row.store_domain,
         priceCents: row.price_cents,
-        label: row.label
+        label: row.label,
+        discountVsMedianPercent: history.discountVsMedianPercent,
+        median30dInCents: history.median30dInCents,
+        lowest90dInCents: history.lowest90dInCents,
+        coupon: row.coupon,
+        url: row.url
       }
     };
     let retryableFailure: Error | null = null;

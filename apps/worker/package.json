@@ -5,7 +5,7 @@
   "description": "Workers de coleta, parsing, deduplicacao, scoring e notificacoes.",
   "type": "module",
   "scripts": {
-    "build": "corepack pnpm --filter @sale-advisor/config build && corepack pnpm --filter @sale-advisor/shared build && corepack pnpm --filter @sale-advisor/domain build && corepack pnpm --filter @sale-advisor/database build && tsc -p tsconfig.json",
+    "build": "corepack pnpm --filter @sale-advisor/config build && corepack pnpm --filter @sale-advisor/shared build && corepack pnpm --filter @sale-advisor/contracts build && corepack pnpm --filter @sale-advisor/domain build && corepack pnpm --filter @sale-advisor/database build && tsc -p tsconfig.json",
     "process:fixtures": "corepack pnpm build && node dist/index.js",
     "score:fixtures": "corepack pnpm build && node dist/process-scoring-fixtures.js",
     "telegram:login": "tsx src/telegram-login.ts",
@@ -13,7 +13,7 @@
     "report:parser": "tsx src/parser-report-cli.ts",
     "export:fixtures": "tsx src/fixture-export-cli.ts",
     "test": "vitest run --coverage",
-    "typecheck": "corepack pnpm --filter @sale-advisor/config build && corepack pnpm --filter @sale-advisor/shared build && corepack pnpm --filter @sale-advisor/domain build && tsc -p tsconfig.json --noEmit",
+    "typecheck": "corepack pnpm --filter @sale-advisor/config build && corepack pnpm --filter @sale-advisor/shared build && corepack pnpm --filter @sale-advisor/contracts build && corepack pnpm --filter @sale-advisor/domain build && tsc -p tsconfig.json --noEmit",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js"
   },
@@ -22,6 +22,7 @@
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@sale-advisor/config": "workspace:*",
+    "@sale-advisor/contracts": "workspace:*",
     "@sale-advisor/database": "workspace:*",
     "@sale-advisor/domain": "workspace:*",
     "@sale-advisor/shared": "workspace:*",

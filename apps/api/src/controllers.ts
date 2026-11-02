@@ -250,6 +250,15 @@ export class CatalogController {
   }
 }
 
+@Controller("v1/stores")
+export class StoresController {
+  constructor(@Inject(API_REPOSITORY) private readonly repository: ApiRepository) {}
+  @Get()
+  async list() {
+    return { items: await this.repository.listStores() };
+  }
+}
+
 @Controller("v1/installations")
 export class InstallationsController {
   constructor(@Inject(API_REPOSITORY) private readonly repository: ApiRepository) {}

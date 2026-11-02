@@ -110,6 +110,11 @@ describe.runIf(integration)("persistent offer notifications", () => {
     const products = await database.client<{ id: string }[]>`
       select id from products where canonical_key = ${PRODUCT_KEY}
     `;
+    const offers = await database.client<{ url: string }[]>`
+      select o.normalized_url as url from offers o
+      join offer_mentions om on om.offer_id = o.id where om.raw_message_id = ${deal.id}
+    `;
+    // Three earlier prices of R$ 2.000 put the R$ 1.800 deal 10% under the 30-day median.
     const expectedSummary = {
       productId: products[0]!.id,
       vendor: "NVIDIA",
@@ -118,8 +123,14 @@ describe.runIf(integration)("persistent offer notifications", () => {
       storeName: "kabum.com.br",
       storeDomain: "kabum.com.br",
       priceCents: 180_000,
-      label: "muito_boa"
+      label: "muito_boa",
+      discountVsMedianPercent: 10,
+      median30dInCents: 200_000,
+      lowest90dInCents: 200_000,
+      coupon: null,
+      url: offers[0]!.url
     };
+    expect(expectedSummary.url).toMatch(/^https:\/\/www\.kabum\.com\.br\//);
     const sent = notifications.deliveries.filter(
       ({ target }) => target.installationId === installationId
     );

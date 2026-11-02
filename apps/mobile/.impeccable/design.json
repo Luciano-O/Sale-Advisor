@@ -1,0 +1,602 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-29T19:44:08.585Z",
+  "title": "Design System: Sale Advisor",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "#0B1220",
+        "oklch": "oklch(18.3% 0.031 263.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.031 263.4)",
+          "oklch(26.4% 0.031 263.4)",
+          "oklch(37.9% 0.031 263.4)",
+          "oklch(49.3% 0.031 263.4)",
+          "oklch(60.7% 0.031 263.4)",
+          "oklch(72.1% 0.031 263.4)",
+          "oklch(83.6% 0.031 263.4)",
+          "oklch(95.0% 0.031 263.4)"
+        ]
+      },
+      "slate": {
+        "role": "neutral",
+        "displayName": "Ardósia",
+        "canonical": "#485264",
+        "oklch": "oklch(43.7% 0.032 262.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.032 262.2)",
+          "oklch(26.4% 0.032 262.2)",
+          "oklch(37.9% 0.032 262.2)",
+          "oklch(49.3% 0.032 262.2)",
+          "oklch(60.7% 0.032 262.2)",
+          "oklch(72.1% 0.032 262.2)",
+          "oklch(83.6% 0.032 262.2)",
+          "oklch(95.0% 0.032 262.2)"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Chão",
+        "canonical": "#F1F2F5",
+        "oklch": "oklch(96.1% 0.004 271.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.004 271.4)",
+          "oklch(26.4% 0.004 271.4)",
+          "oklch(37.9% 0.004 271.4)",
+          "oklch(49.3% 0.004 271.4)",
+          "oklch(60.7% 0.004 271.4)",
+          "oklch(72.1% 0.004 271.4)",
+          "oklch(83.6% 0.004 271.4)",
+          "oklch(95.0% 0.004 271.4)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Superfície",
+        "canonical": "#FFFFFF",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.000 89.9)",
+          "oklch(26.4% 0.000 89.9)",
+          "oklch(37.9% 0.000 89.9)",
+          "oklch(49.3% 0.000 89.9)",
+          "oklch(60.7% 0.000 89.9)",
+          "oklch(72.1% 0.000 89.9)",
+          "oklch(83.6% 0.000 89.9)",
+          "oklch(95.0% 0.000 89.9)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Linha",
+        "canonical": "#D5D9E0",
+        "oklch": "oklch(88.4% 0.011 261.8)",
+        "tonalRamp": [
+          "oklch(15.0% 0.011 261.8)",
+          "oklch(26.4% 0.011 261.8)",
+          "oklch(37.9% 0.011 261.8)",
+          "oklch(49.3% 0.011 261.8)",
+          "oklch(60.7% 0.011 261.8)",
+          "oklch(72.1% 0.011 261.8)",
+          "oklch(83.6% 0.011 261.8)",
+          "oklch(95.0% 0.011 261.8)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Fio",
+        "canonical": "#E6E9EE",
+        "oklch": "oklch(93.3% 0.007 260.7)",
+        "tonalRamp": [
+          "oklch(15.0% 0.007 260.7)",
+          "oklch(26.4% 0.007 260.7)",
+          "oklch(37.9% 0.007 260.7)",
+          "oklch(49.3% 0.007 260.7)",
+          "oklch(60.7% 0.007 260.7)",
+          "oklch(72.1% 0.007 260.7)",
+          "oklch(83.6% 0.007 260.7)",
+          "oklch(95.0% 0.007 260.7)"
+        ]
+      },
+      "dash": {
+        "role": "neutral",
+        "displayName": "Tracejado",
+        "canonical": "#A3AAB6",
+        "oklch": "oklch(73.6% 0.019 261.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.019 261.3)",
+          "oklch(26.4% 0.019 261.3)",
+          "oklch(37.9% 0.019 261.3)",
+          "oklch(49.3% 0.019 261.3)",
+          "oklch(60.7% 0.019 261.3)",
+          "oklch(72.1% 0.019 261.3)",
+          "oklch(83.6% 0.019 261.3)",
+          "oklch(95.0% 0.019 261.3)"
+        ]
+      },
+      "pebble": {
+        "role": "neutral",
+        "displayName": "Seixo",
+        "canonical": "#C9CED8",
+        "oklch": "oklch(85.1% 0.015 264.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.015 264.5)",
+          "oklch(26.4% 0.015 264.5)",
+          "oklch(37.9% 0.015 264.5)",
+          "oklch(49.3% 0.015 264.5)",
+          "oklch(60.7% 0.015 264.5)",
+          "oklch(72.1% 0.015 264.5)",
+          "oklch(83.6% 0.015 264.5)",
+          "oklch(95.0% 0.015 264.5)"
+        ]
+      },
+      "cobalt": {
+        "role": "primary",
+        "displayName": "Cobalto de Teste",
+        "canonical": "#2147F0",
+        "oklch": "oklch(50.1% 0.253 266.0)",
+        "tonalRamp": [
+          "oklch(15.0% 0.200 266.0)",
+          "oklch(26.4% 0.200 266.0)",
+          "oklch(37.9% 0.200 266.0)",
+          "oklch(49.3% 0.200 266.0)",
+          "oklch(60.7% 0.200 266.0)",
+          "oklch(72.1% 0.200 266.0)",
+          "oklch(83.6% 0.200 266.0)",
+          "oklch(95.0% 0.200 266.0)"
+        ]
+      },
+      "cobalt-deep": {
+        "role": "primary",
+        "displayName": "Cobalto Fundo",
+        "canonical": "#1A36B8",
+        "oklch": "oklch(41.4% 0.205 266.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.200 266.4)",
+          "oklch(26.4% 0.200 266.4)",
+          "oklch(37.9% 0.200 266.4)",
+          "oklch(49.3% 0.200 266.4)",
+          "oklch(60.7% 0.200 266.4)",
+          "oklch(72.1% 0.200 266.4)",
+          "oklch(83.6% 0.200 266.4)",
+          "oklch(95.0% 0.200 266.4)"
+        ]
+      },
+      "cobalt-mist": {
+        "role": "primary",
+        "displayName": "Névoa Cobalto",
+        "canonical": "#D5DDFE",
+        "oklch": "oklch(90.2% 0.046 274.7)",
+        "tonalRamp": [
+          "oklch(15.0% 0.046 274.7)",
+          "oklch(26.4% 0.046 274.7)",
+          "oklch(37.9% 0.046 274.7)",
+          "oklch(49.3% 0.046 274.7)",
+          "oklch(60.7% 0.046 274.7)",
+          "oklch(72.1% 0.046 274.7)",
+          "oklch(83.6% 0.046 274.7)",
+          "oklch(95.0% 0.046 274.7)"
+        ]
+      },
+      "cobalt-grid": {
+        "role": "primary",
+        "displayName": "Grade Cobalto",
+        "canonical": "#4A69F4",
+        "oklch": "oklch(57.9% 0.211 269.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.200 269.2)",
+          "oklch(26.4% 0.200 269.2)",
+          "oklch(37.9% 0.200 269.2)",
+          "oklch(49.3% 0.200 269.2)",
+          "oklch(60.7% 0.200 269.2)",
+          "oklch(72.1% 0.200 269.2)",
+          "oklch(83.6% 0.200 269.2)",
+          "oklch(95.0% 0.200 269.2)"
+        ]
+      },
+      "cobalt-wash": {
+        "role": "primary",
+        "displayName": "Lavagem Cobalto",
+        "canonical": "#EEF3FE",
+        "oklch": "oklch(96.4% 0.016 266.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.016 266.3)",
+          "oklch(26.4% 0.016 266.3)",
+          "oklch(37.9% 0.016 266.3)",
+          "oklch(49.3% 0.016 266.3)",
+          "oklch(60.7% 0.016 266.3)",
+          "oklch(72.1% 0.016 266.3)",
+          "oklch(83.6% 0.016 266.3)",
+          "oklch(95.0% 0.016 266.3)"
+        ]
+      },
+      "ink-raised": {
+        "role": "neutral",
+        "displayName": "Tinta Elevada",
+        "canonical": "#1E2838",
+        "oklch": "oklch(27.5% 0.033 259.6)",
+        "tonalRamp": [
+          "oklch(15.0% 0.033 259.6)",
+          "oklch(26.4% 0.033 259.6)",
+          "oklch(37.9% 0.033 259.6)",
+          "oklch(49.3% 0.033 259.6)",
+          "oklch(60.7% 0.033 259.6)",
+          "oklch(72.1% 0.033 259.6)",
+          "oklch(83.6% 0.033 259.6)",
+          "oklch(95.0% 0.033 259.6)"
+        ]
+      },
+      "ink-mist": {
+        "role": "neutral",
+        "displayName": "Névoa Tinta",
+        "canonical": "#B9C2D3",
+        "oklch": "oklch(81.2% 0.026 263.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.026 263.3)",
+          "oklch(26.4% 0.026 263.3)",
+          "oklch(37.9% 0.026 263.3)",
+          "oklch(49.3% 0.026 263.3)",
+          "oklch(60.7% 0.026 263.3)",
+          "oklch(72.1% 0.026 263.3)",
+          "oklch(83.6% 0.026 263.3)",
+          "oklch(95.0% 0.026 263.3)"
+        ]
+      },
+      "steel": {
+        "role": "neutral",
+        "displayName": "Aço",
+        "canonical": "#8A96AB",
+        "oklch": "oklch(67.1% 0.034 261.7)",
+        "tonalRamp": [
+          "oklch(15.0% 0.034 261.7)",
+          "oklch(26.4% 0.034 261.7)",
+          "oklch(37.9% 0.034 261.7)",
+          "oklch(49.3% 0.034 261.7)",
+          "oklch(60.7% 0.034 261.7)",
+          "oklch(72.1% 0.034 261.7)",
+          "oklch(83.6% 0.034 261.7)",
+          "oklch(95.0% 0.034 261.7)"
+        ]
+      },
+      "steel-deep": {
+        "role": "neutral",
+        "displayName": "Aço Fundo",
+        "canonical": "#6B7385",
+        "oklch": "oklch(55.5% 0.030 266.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.030 266.4)",
+          "oklch(26.4% 0.030 266.4)",
+          "oklch(37.9% 0.030 266.4)",
+          "oklch(49.3% 0.030 266.4)",
+          "oklch(60.7% 0.030 266.4)",
+          "oklch(72.1% 0.030 266.4)",
+          "oklch(83.6% 0.030 266.4)",
+          "oklch(95.0% 0.030 266.4)"
+        ]
+      },
+      "signal": {
+        "role": "secondary",
+        "displayName": "Laranja de Sinal",
+        "canonical": "#FF6B2C",
+        "oklch": "oklch(70.4% 0.195 40.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.195 40.9)",
+          "oklch(26.4% 0.195 40.9)",
+          "oklch(37.9% 0.195 40.9)",
+          "oklch(49.3% 0.195 40.9)",
+          "oklch(60.7% 0.195 40.9)",
+          "oklch(72.1% 0.195 40.9)",
+          "oklch(83.6% 0.195 40.9)",
+          "oklch(95.0% 0.195 40.9)"
+        ]
+      },
+      "label-normal": {
+        "role": "neutral",
+        "displayName": "Rótulo normal",
+        "canonical": "#DDE1E8",
+        "oklch": "oklch(90.9% 0.010 261.8)",
+        "tonalRamp": [
+          "oklch(15.0% 0.010 261.8)",
+          "oklch(26.4% 0.010 261.8)",
+          "oklch(37.9% 0.010 261.8)",
+          "oklch(49.3% 0.010 261.8)",
+          "oklch(60.7% 0.010 261.8)",
+          "oklch(72.1% 0.010 261.8)",
+          "oklch(83.6% 0.010 261.8)",
+          "oklch(95.0% 0.010 261.8)"
+        ]
+      },
+      "label-boa": {
+        "role": "primary",
+        "displayName": "Rótulo boa",
+        "canonical": "#9DB0FB",
+        "oklch": "oklch(77.1% 0.110 272.7)",
+        "tonalRamp": [
+          "oklch(15.0% 0.110 272.7)",
+          "oklch(26.4% 0.110 272.7)",
+          "oklch(37.9% 0.110 272.7)",
+          "oklch(49.3% 0.110 272.7)",
+          "oklch(60.7% 0.110 272.7)",
+          "oklch(72.1% 0.110 272.7)",
+          "oklch(83.6% 0.110 272.7)",
+          "oklch(95.0% 0.110 272.7)"
+        ]
+      },
+      "label-muito-boa": {
+        "role": "primary",
+        "displayName": "Rótulo muito boa",
+        "canonical": "#2147F0",
+        "oklch": "oklch(50.1% 0.253 266.0)",
+        "tonalRamp": [
+          "oklch(15.0% 0.200 266.0)",
+          "oklch(26.4% 0.200 266.0)",
+          "oklch(37.9% 0.200 266.0)",
+          "oklch(49.3% 0.200 266.0)",
+          "oklch(60.7% 0.200 266.0)",
+          "oklch(72.1% 0.200 266.0)",
+          "oklch(83.6% 0.200 266.0)",
+          "oklch(95.0% 0.200 266.0)"
+        ]
+      },
+      "label-excepcional": {
+        "role": "secondary",
+        "displayName": "Rótulo excepcional",
+        "canonical": "#FF6B2C",
+        "oklch": "oklch(70.4% 0.195 40.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.195 40.9)",
+          "oklch(26.4% 0.195 40.9)",
+          "oklch(37.9% 0.195 40.9)",
+          "oklch(49.3% 0.195 40.9)",
+          "oklch(60.7% 0.195 40.9)",
+          "oklch(72.1% 0.195 40.9)",
+          "oklch(83.6% 0.195 40.9)",
+          "oklch(95.0% 0.195 40.9)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Título da boas-vindas, uma vez por fluxo."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Título de cada tela."
+      },
+      "price": {
+        "displayName": "Preço",
+        "purpose": "Preço no detalhe da oferta, com numerais tabulares."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Nomes de subcategoria e de produto em cards."
+      },
+      "title-sm": {
+        "displayName": "Title pequeno",
+        "purpose": "Linhas de lista e opções de folha."
+      },
+      "section": {
+        "displayName": "Seção",
+        "purpose": "Cabeçalhos de seção em Ardósia."
+      },
+      "tag": {
+        "displayName": "Etiqueta",
+        "purpose": "Chips de rótulo e de delta."
+      },
+      "body": {
+        "displayName": "Corpo",
+        "purpose": "Frases de apoio."
+      },
+      "body-sm": {
+        "displayName": "Corpo pequeno",
+        "purpose": "Apoio dentro de painéis."
+      },
+      "caption": {
+        "displayName": "Legenda",
+        "purpose": "Metadados e notas."
+      },
+      "button": {
+        "displayName": "Botão",
+        "purpose": "Botão primário."
+      },
+      "button-sm": {
+        "displayName": "Botão pequeno",
+        "purpose": "Botões secundários."
+      }
+    },
+    "shadows": [
+      {
+        "name": "sheet",
+        "value": "0 -12px 28px rgba(11, 18, 32, 0.25)",
+        "purpose": "Folhas de baixo para cima."
+      },
+      {
+        "name": "snackbar",
+        "value": "0 8px 20px rgba(11, 18, 32, 0.3)",
+        "purpose": "Aviso de desfazer."
+      },
+      {
+        "name": "dialog",
+        "value": "0 16px 40px rgba(11, 18, 32, 0.3)",
+        "purpose": "Diálogo de confirmação destrutiva."
+      },
+      {
+        "name": "preview-on-cobalt",
+        "value": "0 10px 24px rgba(8, 20, 90, 0.35), 0 2px 4px rgba(8, 20, 90, 0.25)",
+        "purpose": "Notificação de exemplo sobre a faixa cobalto."
+      },
+      {
+        "name": "scrim",
+        "value": "rgba(11, 18, 32, 0.5)",
+        "purpose": "Véu atrás de folhas e diálogos."
+      }
+    ],
+    "motion": [
+      {
+        "name": "bar-grow",
+        "value": "scaleX 0→1, 900ms cubic-bezier(0.16, 1, 0.3, 1), em sequência, a barra de hoje por último",
+        "purpose": "Barras do gráfico de veredito crescendo a partir do eixo."
+      },
+      {
+        "name": "rise",
+        "value": "translateY 6px→0 e opacidade, 500ms cubic-bezier(0.16, 1, 0.3, 1), depois das barras",
+        "purpose": "Anotação e veredito."
+      },
+      {
+        "name": "state",
+        "value": "160ms ease-out",
+        "purpose": "Hover, rotação da seta de expandir e trocas de estado."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce desliga bar-grow e rise",
+        "purpose": "Tudo aparece pronto."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone",
+        "value": "390px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botão primário",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal da tela, um por tela, na base.",
+      "html": "<button class=\"ds-btn-primary\">Continuar <svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"m13 6 6 6-6 6\"/></svg></button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 300px; height: 56px; padding: 0 20px 0 22px; border: 0; border-radius: 8px; background: #0B1220; color: #FFFFFF; font-family: 'Barlow', system-ui, sans-serif; font-weight: 700; font-size: 17px; cursor: pointer; transition: background 160ms ease-out; } .ds-btn-primary:hover { background: #1E2838; } .ds-btn-primary:focus-visible { outline: 3px solid #2147F0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Botão com contorno",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Ação secundária: adicionar, mostrar, desbloquear.",
+      "html": "<button class=\"ds-btn-outline\">Adicionar subcategoria</button>",
+      "css": ".ds-btn-outline { height: 48px; padding: 0 16px; border: 1.5px solid #0B1220; border-radius: 8px; background: transparent; color: #0B1220; font-family: 'Barlow', system-ui, sans-serif; font-weight: 600; font-size: 15px; cursor: pointer; transition: background 160ms ease-out; } .ds-btn-outline:hover { background: #E6E9EE; } .ds-btn-outline:focus-visible { outline: 3px solid #2147F0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Chips de produto e rótulo",
+      "kind": "chip",
+      "refersTo": "chip-selected",
+      "description": "Produto escolhido em cobalto; etiquetas de rótulo e delta seguem a rampa.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-chip\">RTX 5060 <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/></svg></span><span class=\"ds-tag ds-tag-mb\">Muito boa</span><span class=\"ds-tag ds-tag-boa\">Boa</span><span class=\"ds-tag ds-tag-delta\">−11%</span></div>",
+      "css": ".ds-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .ds-chip { display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border-radius: 6px; background: #2147F0; color: #FFFFFF; font-family: 'Barlow Condensed', 'Barlow', sans-serif; font-weight: 700; font-size: 16px; } .ds-tag { font-family: 'Barlow Condensed', 'Barlow', sans-serif; font-weight: 700; font-size: 14px; line-height: 1; padding: 5px 8px; border-radius: 4px; } .ds-tag-mb { background: #2147F0; color: #FFFFFF; } .ds-tag-boa { background: #9DB0FB; color: #0B1220; } .ds-tag-delta { background: #FF6B2C; color: #0B1220; font-weight: 800; padding: 5px 6px; }"
+    },
+    {
+      "name": "Campo de busca rápida",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Abre a lista do catálogo; nunca aceita texto livre como escolha.",
+      "html": "<label class=\"ds-search\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#0B1220\" stroke-width=\"2.2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/></svg><input placeholder=\"Adicionar placa, ex.: RTX 5070 Ti\"></label>",
+      "css": ".ds-search { display: flex; align-items: center; gap: 10px; width: 320px; height: 52px; padding: 0 16px; border: 2px solid #0B1220; border-radius: 8px; background: #FFFFFF; } .ds-search input { flex: 1; border: 0; outline: 0; background: transparent; font-family: 'Barlow', system-ui, sans-serif; font-size: 16px; color: #0B1220; } .ds-search input::placeholder { color: #485264; } .ds-search:focus-within { outline: 3px solid #2147F0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Navegação inferior",
+      "kind": "nav",
+      "refersTo": "nav-indicator",
+      "description": "Três abas; a ativa ganha o indicador cobalto.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item\"><span class=\"ds-nav-ind\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><path d=\"M4 6h16\"/><path d=\"M4 12h11\"/><path d=\"M4 18h6\"/></svg></span>Ofertas</a><a class=\"ds-nav-item is-active\"><span class=\"ds-nav-ind\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><circle cx=\"12\" cy=\"12\" r=\"5\"/><circle cx=\"12\" cy=\"12\" r=\"1\"/></svg></span>Seguindo</a><a class=\"ds-nav-item\"><span class=\"ds-nav-ind\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M4 7h9\"/><path d=\"M17 7h3\"/><path d=\"M15 5v4\"/><path d=\"M4 17h3\"/><path d=\"M11 17h9\"/><path d=\"M9 15v4\"/></svg></span>Ajustes</a></nav>",
+      "css": ".ds-nav { display: grid; grid-template-columns: repeat(3, 1fr); width: 390px; height: 80px; padding-bottom: 10px; box-sizing: border-box; background: #FFFFFF; border-top: 1px solid #D5D9E0; } .ds-nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #485264; font-family: 'Barlow Condensed', 'Barlow', sans-serif; font-weight: 600; font-size: 13px; text-decoration: none; cursor: pointer; } .ds-nav-item svg { color: #0B1220; } .ds-nav-ind { width: 56px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: background 160ms ease-out; } .ds-nav-item:hover .ds-nav-ind { background: #E6E9EE; } .ds-nav-item.is-active { color: #0B1220; font-weight: 700; } .ds-nav-item.is-active .ds-nav-ind { background: #2147F0; } .ds-nav-item.is-active svg { color: #FFFFFF; }"
+    },
+    {
+      "name": "Controle segmentado",
+      "kind": "custom",
+      "refersTo": "segment-on",
+      "description": "Duas opções exclusivas; a ativa em cobalto com check.",
+      "html": "<div class=\"ds-seg\" role=\"group\"><button class=\"ds-seg-btn is-on\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"/></svg> Produtos específicos</button><button class=\"ds-seg-btn\">Subcategoria inteira</button></div>",
+      "css": ".ds-seg { display: grid; grid-template-columns: 1fr 1fr; width: 340px; height: 44px; border: 1.5px solid #0B1220; border-radius: 8px; overflow: hidden; } .ds-seg-btn { border: 0; background: #FFFFFF; color: #0B1220; font-family: 'Barlow', system-ui, sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; } .ds-seg-btn + .ds-seg-btn { border-left: 1.5px solid #0B1220; } .ds-seg-btn.is-on { background: #2147F0; color: #FFFFFF; font-weight: 700; } .ds-seg-btn:focus-visible { outline: 3px solid #FF6B2C; outline-offset: -3px; }"
+    },
+    {
+      "name": "Painel em tinta com switch",
+      "kind": "card",
+      "refersTo": "panel-ink",
+      "description": "Decisões grandes: seguir todo o hardware, ligar alertas.",
+      "html": "<button class=\"ds-ink\" role=\"switch\" aria-checked=\"true\"><span class=\"ds-ink-text\"><span class=\"ds-ink-title\">Alertas de ofertas</span><span class=\"ds-ink-sub\">Um alerta para cada oferta que passa no teste.</span></span><span class=\"ds-track\"><span class=\"ds-thumb\"></span></span></button>",
+      "css": ".ds-ink { display: flex; align-items: center; gap: 16px; width: 350px; padding: 16px 16px 16px 18px; border: 2px solid #2147F0; border-radius: 10px; background: #0B1220; color: #FFFFFF; text-align: left; cursor: pointer; } .ds-ink-text { flex: 1; display: flex; flex-direction: column; gap: 4px; } .ds-ink-title { font-family: 'Barlow Condensed', 'Barlow', sans-serif; font-weight: 700; font-size: 23px; line-height: 1.05; } .ds-ink-sub { font-family: 'Barlow', system-ui, sans-serif; font-size: 14px; line-height: 1.35; color: #B9C2D3; } .ds-track { width: 52px; height: 32px; box-sizing: border-box; border-radius: 16px; background: #2147F0; display: flex; align-items: center; justify-content: flex-end; padding: 0 2px; } .ds-thumb { width: 24px; height: 24px; border-radius: 50%; background: #FFFFFF; } .ds-ink:focus-visible { outline: 3px solid #FF6B2C; outline-offset: 2px; }"
+    },
+    {
+      "name": "Gráfico de veredito",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "Assinatura: hoje contra mediana de 30 dias e mínima de 90 dias, barras crescendo do eixo.",
+      "html": "<figure class=\"ds-verdict\"><div class=\"ds-row\"><span>Mediana 30 dias</span><span class=\"ds-bar\"><i style=\"width: 100%\"></i></span><b>2.139</b></div><div class=\"ds-row\"><span>Mínima 90 dias</span><span class=\"ds-bar\"><i style=\"width: 86%; animation-delay: 150ms\"></i></span><b>1.849</b></div><div class=\"ds-row\"><span>Hoje</span><span class=\"ds-bar\"><i class=\"is-today\" style=\"width: 89%; animation-delay: 300ms\"></i></span><b>1.899,90</b></div><figcaption><span>Veredito</span><strong>Muito boa</strong></figcaption></figure>",
+      "css": ".ds-verdict { margin: 0; width: 390px; box-sizing: border-box; padding: 20px; background: #2147F0; color: #FFFFFF; display: flex; flex-direction: column; gap: 10px; font-family: 'Barlow Condensed', 'Barlow', sans-serif; } .ds-row { display: grid; grid-template-columns: 96px 1fr 64px; gap: 10px; align-items: center; font-size: 14px; font-weight: 600; color: #D5DDFE; } .ds-row b { color: #FFFFFF; font-weight: 700; font-size: 16px; text-align: right; font-variant-numeric: tabular-nums; } .ds-bar { height: 14px; } .ds-bar i { display: block; height: 100%; border-radius: 2px; background: #9DB0FB; transform-origin: left center; animation: ds-grow 900ms cubic-bezier(0.16, 1, 0.3, 1) both; } .ds-bar i.is-today { background: #FF6B2C; } .ds-verdict figcaption { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid #4A69F4; padding-top: 12px; font-size: 16px; color: #D5DDFE; } .ds-verdict strong { font-size: 30px; font-weight: 800; color: #FFFFFF; } @keyframes ds-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } } @media (prefers-reduced-motion: reduce) { .ds-bar i { animation: none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "O Gráfico de Benchmark",
+    "overview": "Cada tela se lê como um gráfico de review de hardware: barras horizontais, eixo, anotação e veredito. A tese é que toda oferta passa por um teste antes de chegar ao usuário, e o design mostra esse teste em vez de anunciar desconto. A oferta de hoje aparece contra a mediana de 30 dias e a mínima de 90 dias, e o rótulo (normal, boa, muito boa, excepcional) é sempre a conclusão de uma comparação visível.\n\nO mundo é claro, plano e preciso. Fundo cinza frio, painéis brancos com borda fina, tinta quase preta e um único acento forte, o cobalto, que marca o que é do usuário e o que está em teste. O laranja de sinal entra como a caneta do revisor: anota o gráfico (a barra de hoje, o \"−11%\") e marca o \"excepcional\". A personalidade vem da Barlow Condensed em tamanho cheio nos títulos, nos nomes de produto e nos preços, e de faixas inteiras em cobalto nos momentos-herói (boas-vindas, alertas, veredito do detalhe).\n\nA densidade é de app de tarefa (modo Operate): listas escaneáveis, alvos de 48dp e padrões nativos do Android, com a marca nos detalhes, nunca à custa da leitura. O mundo recusa o card de oferta com selo de \"% OFF\" e o visual de promoção berrante, e substitui o tema escuro com verde menta da versão anterior.",
+    "keyCharacteristics": [
+      "Barras horizontais como linguagem: etapas, rótulos, descontos, canais e o próprio símbolo são barras.",
+      "Um acento só (cobalto), com o laranja restrito a anotações e ao \"excepcional\".",
+      "Títulos, produtos e números em Barlow Condensed 700–800; frases em Barlow.",
+      "Superfícies planas com borda de 1px; sombra só no que flutua.",
+      "Rampa de rótulos fixa em todo o sistema, do feed ao canal de notificação."
+    ],
+    "rules": [
+      {
+        "name": "A Regra do Cobalto É Seu",
+        "body": "O cobalto marca só o que o usuário escolheu ou o que está em teste. Ele não decora títulos, ícones soltos ou fundos sem significado.",
+        "section": "colors"
+      },
+      {
+        "name": "A Regra do Laranja Sinal",
+        "body": "O laranja aparece em no máximo uma anotação por bloco e nunca em botão, link ou texto corrido. Sempre com texto em tinta por cima.",
+        "section": "colors"
+      },
+      {
+        "name": "A Regra da Rampa Fixa",
+        "body": "Cada rótulo tem uma cor e só uma, em qualquer superfície. Não existe \"verde de oferta boa\".",
+        "section": "colors"
+      },
+      {
+        "name": "A Regra do Condensado",
+        "body": "Números, nomes de produto, títulos e rótulos vão em Barlow Condensed; frases inteiras vão em Barlow. Uma frase em condensado ou um preço em Barlow está errado.",
+        "section": "typography"
+      },
+      {
+        "name": "A Regra dos Numerais Tabulares",
+        "body": "Todo preço, porcentagem e contagem usa numerais tabulares, para que colunas de preço alinhem.",
+        "section": "typography"
+      },
+      {
+        "name": "A Regra dos 48dp",
+        "body": "Todo alvo de toque tem pelo menos 48dp, inclusive o × de remover e as setas de expandir.",
+        "section": "layout"
+      },
+      {
+        "name": "A Regra do Plano Por Padrão",
+        "body": "Painéis, cards e listas não têm sombra. Sombra só em folha, aviso, diálogo e prévia de notificação.",
+        "section": "elevation"
+      },
+      {
+        "name": "A Regra da Barra",
+        "body": "O símbolo do app é a forma-mãe: três barras alinhadas à esquerda (22, 15 e 9 de largura numa grade de 28), a mais curta em cobalto. No ícone do app, a mais curta é laranja; no ícone de notificação, as três são monocromáticas.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do mostrar o teste: preço de hoje contra mediana de 30 dias e mínima de 90 dias, com o rótulo como conclusão.",
+      "Do usar a rampa de rótulos (#DDE1E8, #9DB0FB, #2147F0, #FF6B2C) sempre na mesma ordem e com as mesmas cores.",
+      "Do colocar texto secundário sobre cobalto em Névoa Cobalto (#D5DDFE) e sobre tinta em Névoa Tinta (#B9C2D3).",
+      "Do manter o primário em Tinta (#0B1220), 56px, raio 8px, com seta, um por tela.",
+      "Do usar Barlow Condensed com numerais tabulares para todo preço e porcentagem.",
+      "Do dar a cada estado (carregando, vazio, sem conexão, expirada, bloqueado) um desenho próprio no mesmo sistema."
+    ],
+    "donts": [
+      "Don't usar selo de \"% OFF\", estrela de desconto, degradê ou visual de promoção berrante.",
+      "Don't voltar ao tema escuro com verde menta da versão anterior.",
+      "Don't usar o laranja (#FF6B2C) em botões, links ou texto corrido, nem com texto branco por cima.",
+      "Don't pôr sombra em painel, card ou linha de lista.",
+      "Don't colocar sobretítulo (eyebrow) acima dos títulos.",
+      "Don't criar campo para o usuário digitar preço, faixa de preço ou nível de alerta.",
+      "Don't usar cinza para texto sobre cobalto ou sobre tinta."
+    ]
+  }
+}
