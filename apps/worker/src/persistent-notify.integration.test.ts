@@ -120,7 +120,7 @@ describe.runIf(integration)("persistent offer notifications", () => {
       vendor: "NVIDIA",
       model: "Integration Notify GPU",
       vramGb: 8,
-      storeName: "kabum.com.br",
+      storeName: "KaBuM!",
       storeDomain: "kabum.com.br",
       priceCents: 180_000,
       label: "muito_boa",

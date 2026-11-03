@@ -9,6 +9,7 @@ import {
   DEFAULT_PRICE_SCORING_POLICY,
   buildOfferCandidate,
   extractHttpUrls,
+  identifyStore,
   parseAdminOverrides,
   scoreOffer,
   selectPrimaryOfferUrl
@@ -305,7 +306,8 @@ export class PersistentPipelineService implements OnApplicationShutdown {
       return null;
     const product = candidate.product;
     const price = candidate.price;
-    const store = candidate.store;
+    // A parse stored before a store got its name still files the offer under that store.
+    const store = identifyStore(candidate.store.domain);
     const priceBucketInCents = candidate.priceBucketInCents;
     return this.connection.client.begin(async (sql) => {
       const urlHash = candidate.normalizedUrl
@@ -325,8 +327,10 @@ export class PersistentPipelineService implements OnApplicationShutdown {
         on conflict (canonical_key) do update set updated_at = now() returning id
       `;
       const stores = await sql<{ id: string }[]>`
-        insert into stores (domain, name) values (${store.domain}, ${store.domain})
-        on conflict (domain) do update set updated_at = now() returning id
+        insert into stores (domain, name) values (${store.domain}, ${store.name})
+        on conflict (domain) do update set updated_at = now(),
+          name = case when stores.name = stores.domain then excluded.name else stores.name end
+        returning id
       `;
       const productId = products[0]?.id;
       const storeId = stores[0]?.id;

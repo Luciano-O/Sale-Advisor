@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -155,7 +155,14 @@ try {
   const migrationRows = await sql<Array<{ migrationCount: number }>>`
     select count(*)::int as "migrationCount" from drizzle.__drizzle_migrations
   `;
-  assert.equal(migrationRows[0]?.migrationCount, 5, "concurrent migration runners must serialize");
+  const journal = JSON.parse(
+    readFileSync(`${repositoryRoot}packages/database/migrations/meta/_journal.json`, "utf8")
+  ) as { entries: unknown[] };
+  assert.equal(
+    migrationRows[0]?.migrationCount,
+    journal.entries.length,
+    "concurrent migration runners must serialize"
+  );
   const productRows = await sql<Array<{ productCount: number }>>`
     select count(*)::int as "productCount" from products
   `;

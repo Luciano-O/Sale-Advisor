@@ -13,7 +13,13 @@ export {
   scoreOffer,
   scoreOffersWithPriceHistory
 } from "./price-history.js";
-export { normalizeStore, normalizeStoreDomain } from "./store.js";
+export {
+  identifyStore,
+  isNonStoreDomain,
+  KNOWN_STORES,
+  normalizeStore,
+  normalizeStoreDomain
+} from "./store.js";
 export { extractHttpUrls, normalizeUrl, selectPrimaryOfferUrl } from "./url.js";
 export type {
   BuildOfferCandidateInput,
