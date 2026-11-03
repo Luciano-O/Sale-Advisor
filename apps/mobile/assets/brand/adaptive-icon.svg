@@ -1,0 +1,6 @@
+<!-- Foreground of the adaptive icon: the launcher draws the cobalt background and crops the edges. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 44 44" width="1024" height="1024">
+  <rect x="6" y="7" width="16" height="3.5" rx="0.8" fill="#FFFFFF"/>
+  <rect x="6" y="12.25" width="11" height="3.5" rx="0.8" fill="#FFFFFF"/>
+  <rect x="6" y="17.5" width="6.5" height="3.5" rx="0.8" fill="#FF6B2C"/>
+</svg>

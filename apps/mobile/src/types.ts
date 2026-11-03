@@ -32,6 +32,13 @@ export interface HiddenOfferSnapshot {
   priceCents: number;
 }
 
+export interface HiddenOffer {
+  id: string;
+  hiddenAt: string;
+  /** Null for offers hidden before snapshots existed. */
+  snapshot: HiddenOfferSnapshot | null;
+}
+
 export type SubcategoryMode = "inteira" | "produtos";
 
 export interface SubcategoryFollow {

@@ -2,7 +2,7 @@ import { Stack, router } from "expo-router";
 import { SQLiteProvider } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import { Suspense, useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Linking, View } from "react-native";
 
 import { AppProvider, useApp } from "../src/app-context";
 import { migrateDatabase } from "../src/migrations";
@@ -10,14 +10,23 @@ import { subscribeToNotifications } from "../src/notifications";
 import { colors } from "../src/theme";
 
 function NotificationRouter() {
-  const { track } = useApp();
+  const { track, hideFromNotification } = useApp();
   useEffect(
     () =>
-      subscribeToNotifications((offerId) => {
-        void track("notification_opened", { offerId });
-        router.push({ pathname: "/offer/[id]", params: { id: offerId } });
+      subscribeToNotifications((action) => {
+        if (action.kind === "hide") {
+          void hideFromNotification(action.offerId, action.snapshot);
+          return;
+        }
+        void track("notification_opened", { offerId: action.offerId });
+        if (action.kind === "open-store") {
+          void track("offer_clicked", { offerId: action.offerId });
+          void Linking.openURL(action.url);
+          return;
+        }
+        router.push({ pathname: "/offer/[id]", params: { id: action.offerId } });
       }),
-    [track]
+    [hideFromNotification, track]
   );
   return null;
 }
@@ -36,6 +45,8 @@ function Navigation() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="offer/[id]" />
           <Stack.Screen name="seguindo/[subcategoria]" />
+          <Stack.Screen name="ajustes/nao-mostrar" />
+          <Stack.Screen name="ajustes/privacidade" />
         </Stack.Protected>
         <Stack.Protected guard={!preferences.onboardingCompleted}>
           <Stack.Screen name="onboarding" />

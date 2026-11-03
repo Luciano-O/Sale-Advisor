@@ -28,6 +28,13 @@ function medianPhrase(priceCents: number, median: number): string {
   return `${difference(priceCents - median)} ${side} da mediana de 30 dias`;
 }
 
+/** The sentence comparing a price with the 90-day low, also used in the alert text. */
+export function lowestComparison(priceCents: number, lowest: number): string {
+  return priceCents <= lowest
+    ? "Menor preço dos últimos 90 dias."
+    : `${difference(priceCents - lowest)} acima da mínima de 90 dias.`;
+}
+
 export function verdictCaption({
   priceCents,
   median30dInCents: median,
@@ -44,7 +51,7 @@ export function verdictCaption({
     .filter((phrase) => phrase !== null)
     .join(" e ");
   if (!isLowest) return `${comparisons}.`;
-  const lowestSentence = "Menor preço dos últimos 90 dias.";
+  const lowestSentence = lowestComparison(priceCents, lowest);
   return comparisons ? `${comparisons}. ${lowestSentence}` : lowestSentence;
 }
 

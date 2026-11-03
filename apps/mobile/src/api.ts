@@ -1,4 +1,5 @@
 import { EMPTY_HISTORY, offersPath } from "./feed";
+import type { PublicStore } from "./settings";
 import type { MobileOffer, OfferSort, PendingEvent, ScoreLabel } from "./types";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://10.0.2.2:3000";
@@ -71,6 +72,11 @@ export interface CatalogModel {
 
 export async function fetchCatalog(): Promise<CatalogModel[]> {
   const response = await request<{ items: CatalogModel[] }>("/v1/catalog");
+  return response.items;
+}
+
+export async function fetchStores(): Promise<PublicStore[]> {
+  const response = await request<{ items: PublicStore[] }>("/v1/stores");
   return response.items;
 }
 

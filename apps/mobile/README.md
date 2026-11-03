@@ -23,3 +23,18 @@ pnpm --filter @sale-advisor/mobile android
 ```
 
 Sem credenciais FCM, feed, cache, filtros e retry de eventos continuam operando normalmente.
+
+## Alertas
+
+Um canal do Android por rótulo: `offers-boa` (sem som), `offers-muito-boa` (com som) e
+`offers-excepcional` (por cima da tela, com som e vibração). Para testar sem FCM, em um build de
+desenvolvimento:
+
+```powershell
+adb shell am start -a android.intent.action.VIEW -d "saleadvisor://debug-notification?offerId=<id>" com.saleadvisor.mobile
+```
+
+## Ícones
+
+Os SVGs de `assets/brand` são a fonte. Os PNGs ao lado deles foram exportados uma vez, sem dependência
+no projeto. Se um SVG mudar, exporte o PNG de novo no mesmo tamanho e gere um build nativo.

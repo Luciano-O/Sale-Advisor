@@ -1,5 +1,6 @@
 import Constants from "expo-constants";
 import { useSQLiteContext } from "expo-sqlite";
+import { AppState as NativeAppState } from "react-native";
 import {
   createContext,
   useCallback,
@@ -14,6 +15,7 @@ import {
 import {
   fetchCatalog,
   fetchOfferPage,
+  fetchStores,
   registerInstallation,
   sendEvents,
   updateBroadPreferences,
@@ -22,18 +24,17 @@ import {
 } from "./api";
 import { loadFeed, type FeedSource } from "./cache";
 import { createMobileDatabase } from "./database";
-import { flushPendingEvents } from "./events";
+import { flushPendingEvents, recordEvent } from "./events";
 import { appendOfferPage } from "./feed";
 import { filterOffers } from "./filters";
-import {
-  configureNotificationChannel,
-  currentPushToken,
-  requestPushPermission
-} from "./notifications";
+import { configureNotifications, currentPushToken, requestPushPermission } from "./notifications";
+import type { PublicStore } from "./settings";
 import { STARTER_OFFERS } from "./starter-offers";
 import {
   DEFAULT_PREFERENCES,
   type AnonymousEventName,
+  type HiddenOffer,
+  type HiddenOfferSnapshot,
   type LocalPreferences,
   type MobileOffer,
   type OfferSort
@@ -56,6 +57,15 @@ interface AppState {
   catalog: CatalogModel[] | null;
   catalogStatus: CatalogStatus;
   reloadCatalog(): Promise<void>;
+  /** The stores that can be blocked; null until the first list arrives. */
+  stores: PublicStore[] | null;
+  storesStatus: CatalogStatus;
+  reloadStores(): Promise<void>;
+  /** Turning alerts on asks Android first; false when that was refused. */
+  setAlertsEnabled(value: boolean): Promise<boolean>;
+  setAnalyticsEnabled(value: boolean): Promise<void>;
+  /** Erases everything local, starts a new installation and goes back to the onboarding. */
+  clearLocalData(): Promise<void>;
   /** Survives going back to the previous screen, which is where it is shown. */
   undoNotice: UndoNotice | null;
   showUndoNotice(notice: UndoNotice | null): void;
@@ -84,8 +94,11 @@ interface AppState {
   lastHidden: MobileOffer | null;
   undoHide(): Promise<void>;
   dismissLastHidden(): void;
-  hiddenCount: number;
-  showHiddenOffers(): Promise<void>;
+  hiddenOffers: HiddenOffer[];
+  /** For the "Ocultar" action of an alert, where only its snapshot of the offer exists. */
+  hideFromNotification(id: string, snapshot: HiddenOfferSnapshot | null): Promise<void>;
+  unhideOffer(id: string): Promise<void>;
+  restoreHidden(offer: HiddenOffer): Promise<void>;
   track(
     name: AnonymousEventName,
     payload?: Record<string, string | number | boolean | null>
@@ -98,12 +111,17 @@ export function AppProvider({ children }: PropsWithChildren) {
   const sqlite = useSQLiteContext();
   const database = useMemo(() => createMobileDatabase(sqlite), [sqlite]);
   const [allOffers, setAllOffers] = useState<MobileOffer[]>([]);
-  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [hiddenOffers, setHiddenOffers] = useState<HiddenOffer[]>([]);
+  const hiddenIds = useMemo(() => new Set(hiddenOffers.map(({ id }) => id)), [hiddenOffers]);
   const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
+  // For callbacks that must not change identity whenever a preference changes.
+  const preferencesRef = useRef(DEFAULT_PREFERENCES);
   const [preferencesReady, setPreferencesReady] = useState(false);
   const [catalog, setCatalog] = useState<CatalogModel[] | null>(null);
   const [catalogStatus, setCatalogStatus] = useState<CatalogStatus>("loading");
   const [undoNotice, showUndoNotice] = useState<UndoNotice | null>(null);
+  const [stores, setStores] = useState<PublicStore[] | null>(null);
+  const [storesStatus, setStoresStatus] = useState<CatalogStatus>("loading");
   const [installationId, setInstallationId] = useState<string | null>(null);
   const installationIdRef = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,12 +147,13 @@ export function AppProvider({ children }: PropsWithChildren) {
       payload?: Record<string, string | number | boolean | null>
     ) => {
       const id = installationIdRef.current ?? (await database.ensureInstallation());
-      await database.enqueueEvent({
+      const recorded = await recordEvent(preferencesRef.current.analyticsEnabled, database, {
         installationId: id,
         name,
         occurredAt: new Date().toISOString(),
         ...(payload ? { payload } : {})
       });
+      if (!recorded) return;
       try {
         await flushPendingEvents(database.pendingEvents, sendEvents);
       } catch {
@@ -225,32 +244,60 @@ export function AppProvider({ children }: PropsWithChildren) {
     }
   }, [database]);
 
+  const reloadStores = useCallback(async () => {
+    setStoresStatus("loading");
+    try {
+      const items = await fetchStores();
+      setStores(items);
+      setStoresStatus("ready");
+      await database.setAppState("stores", JSON.stringify(items));
+    } catch {
+      setStoresStatus("failed");
+    }
+  }, [database]);
+
+  const reloadHidden = useCallback(async () => {
+    setHiddenOffers(await database.listHidden());
+  }, [database]);
+
+  // "Ocultar" on an alert runs without the app, which finds out when it comes back.
+  useEffect(() => {
+    const subscription = NativeAppState.addEventListener("change", (state) => {
+      if (state === "active") void reloadHidden();
+    });
+    return () => subscription.remove();
+  }, [reloadHidden]);
+
   useEffect(() => {
     let active = true;
     void (async () => {
-      const [id, savedPreferences, savedHiddenIds, viewedAt, refreshedAt, savedCatalog] =
+      const [id, savedPreferences, savedHidden, viewedAt, refreshedAt, savedCatalog, savedStores] =
         await Promise.all([
           database.ensureInstallation(),
           database.getPreferences(),
-          database.getHiddenIds(),
+          database.listHidden(),
           database.getAppState("feed_last_viewed_at"),
           database.getAppState("feed_refreshed_at"),
-          database.getAppState("catalog")
+          database.getAppState("catalog"),
+          database.getAppState("stores")
         ]);
       if (!active) return;
       setInstallationId(id);
       installationIdRef.current = id;
       setPreferences(savedPreferences);
+      preferencesRef.current = savedPreferences;
       setPreferencesReady(true);
-      setHiddenIds(savedHiddenIds);
+      setHiddenOffers(savedHidden);
       if (savedCatalog) setCatalog(JSON.parse(savedCatalog) as CatalogModel[]);
+      if (savedStores) setStores(JSON.parse(savedStores) as PublicStore[]);
       void reloadCatalog();
+      void reloadStores();
       setLastViewedAt(viewedAt);
       setLastUpdated(refreshedAt);
       // The list appears at once; registering and fetching can take long on a bad connection.
       const cachedOffers = await database.offerCache.read();
       if (active && cachedOffers.length > 0) setAllOffers(cachedOffers);
-      await database.enqueueEvent({
+      await recordEvent(savedPreferences.analyticsEnabled, database, {
         installationId: id,
         name: "app_opened",
         occurredAt: new Date().toISOString()
@@ -258,7 +305,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       try {
         await registerInstallation(id, Constants.expoConfig?.version ?? "0.1.0");
         await updateBroadPreferences(id);
-        await configureNotificationChannel();
+        await configureNotifications();
         await updatePushTarget(
           id,
           savedPreferences.alertsEnabled ? await currentPushToken() : null
@@ -274,12 +321,13 @@ export function AppProvider({ children }: PropsWithChildren) {
     return () => {
       active = false;
     };
-  }, [database, refresh, reloadCatalog]);
+  }, [database, refresh, reloadCatalog, reloadStores]);
 
   const save = useCallback(
     async (value: LocalPreferences) => {
       await database.savePreferences(value);
       setPreferences(value);
+      preferencesRef.current = value;
     },
     [database]
   );
@@ -288,7 +336,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (!(await requestPushPermission())) return false;
     const id = installationIdRef.current ?? (await database.ensureInstallation());
     try {
-      await configureNotificationChannel();
+      await configureNotifications();
       await updatePushTarget(id, await currentPushToken());
     } catch {
       // Permission is what the user decided; registering retries at the next start.
@@ -296,29 +344,103 @@ export function AppProvider({ children }: PropsWithChildren) {
     return true;
   }, [database]);
 
+  const setAlertsEnabled = useCallback(
+    async (value: boolean) => {
+      if (value && !(await enableAlerts())) return false;
+      await save({ ...preferencesRef.current, alertsEnabled: value });
+      if (!value && installationIdRef.current)
+        try {
+          await updatePushTarget(installationIdRef.current, null);
+        } catch {
+          // The filter on the device already silences alerts; the next start tells the server.
+        }
+      return true;
+    },
+    [enableAlerts, save]
+  );
+
+  const setAnalyticsEnabled = useCallback(
+    async (value: boolean) => {
+      await save({ ...preferencesRef.current, analyticsEnabled: value });
+      if (!value) await database.clearPendingEvents();
+    },
+    [database, save]
+  );
+
+  const clearLocalData = useCallback(async () => {
+    // The old record stays on the server without anything pointing to it, so it must stop
+    // receiving alerts while there is a connection to say so.
+    if (installationIdRef.current)
+      try {
+        await updatePushTarget(installationIdRef.current, null);
+      } catch {
+        // Without a connection the old record keeps the token; the device filters what arrives.
+      }
+    await database.clearAll();
+    const id = await database.ensureInstallation();
+    installationIdRef.current = id;
+    setInstallationId(id);
+    preferencesRef.current = DEFAULT_PREFERENCES;
+    setPreferences(DEFAULT_PREFERENCES);
+    setHiddenOffers([]);
+    setAllOffers([]);
+    setLastHidden(null);
+    showUndoNotice(null);
+    setLastViewedAt(null);
+    setLastUpdated(null);
+    try {
+      await registerInstallation(id, Constants.expoConfig?.version ?? "0.1.0");
+      await updateBroadPreferences(id);
+    } catch {
+      // The next start registers it again.
+    }
+    void reloadCatalog();
+    void reloadStores();
+    await refresh();
+  }, [database, refresh, reloadCatalog, reloadStores]);
+
   const hideOffer = useCallback(
     async (offer: MobileOffer) => {
       await database.hide(offer);
-      setHiddenIds((current) => new Set([...current, offer.id]));
+      await reloadHidden();
       setLastHidden(offer);
       await track("product_hidden", { offerId: offer.id });
     },
-    [database, track]
+    [database, reloadHidden, track]
+  );
+
+  const hideFromNotification = useCallback(
+    async (id: string, snapshot: HiddenOfferSnapshot | null) => {
+      await database.hideSnapshot(id, snapshot);
+      await reloadHidden();
+      await track("product_hidden", { offerId: id });
+    },
+    [database, reloadHidden, track]
+  );
+
+  const unhideOffer = useCallback(
+    async (id: string) => {
+      await database.unhide(id);
+      await reloadHidden();
+    },
+    [database, reloadHidden]
+  );
+
+  const restoreHidden = useCallback(
+    async ({ id, snapshot, hiddenAt }: HiddenOffer) => {
+      await database.hideSnapshot(id, snapshot, hiddenAt);
+      await reloadHidden();
+    },
+    [database, reloadHidden]
   );
 
   const undoHide = useCallback(async () => {
     if (!lastHidden) return;
     setLastHidden(null);
-    await database.unhide(lastHidden.id);
-    setHiddenIds((current) => new Set([...current].filter((id) => id !== lastHidden.id)));
-  }, [database, lastHidden]);
+    await unhideOffer(lastHidden.id);
+  }, [lastHidden, unhideOffer]);
 
   const dismissLastHidden = useCallback(() => setLastHidden(null), []);
-
-  const showHiddenOffers = useCallback(async () => {
-    await database.unhideAll();
-    setHiddenIds(new Set());
-  }, [database]);
 
   const value = useMemo<AppState>(
     () => ({
@@ -329,6 +451,12 @@ export function AppProvider({ children }: PropsWithChildren) {
       catalog,
       catalogStatus,
       reloadCatalog,
+      stores,
+      storesStatus,
+      reloadStores,
+      setAlertsEnabled,
+      setAnalyticsEnabled,
+      clearLocalData,
       undoNotice,
       showUndoNotice,
       enableAlerts,
@@ -351,8 +479,10 @@ export function AppProvider({ children }: PropsWithChildren) {
       lastHidden,
       undoHide,
       dismissLastHidden,
-      hiddenCount: hiddenIds.size,
-      showHiddenOffers,
+      hiddenOffers,
+      hideFromNotification,
+      unhideOffer,
+      restoreHidden,
       track
     }),
     [
@@ -362,9 +492,19 @@ export function AppProvider({ children }: PropsWithChildren) {
       catalog,
       catalogStatus,
       reloadCatalog,
+      stores,
+      storesStatus,
+      reloadStores,
+      setAlertsEnabled,
+      setAnalyticsEnabled,
+      clearLocalData,
       undoNotice,
       enableAlerts,
       hiddenIds,
+      hiddenOffers,
+      hideFromNotification,
+      unhideOffer,
+      restoreHidden,
       installationId,
       loading,
       offline,
@@ -384,7 +524,6 @@ export function AppProvider({ children }: PropsWithChildren) {
       lastHidden,
       undoHide,
       dismissLastHidden,
-      showHiddenOffers,
       track
     ]
   );

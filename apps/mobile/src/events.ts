@@ -6,6 +6,17 @@ export interface PendingEventStore {
   markFailed(ids: string[], error: string): Promise<void>;
 }
 
+/** With anonymous usage turned off, nothing is written, so nothing can be sent later. */
+export async function recordEvent(
+  analyticsEnabled: boolean,
+  store: { enqueueEvent(event: Omit<PendingEvent, "id" | "attempts">): Promise<string> },
+  event: Omit<PendingEvent, "id" | "attempts">
+): Promise<boolean> {
+  if (!analyticsEnabled) return false;
+  await store.enqueueEvent(event);
+  return true;
+}
+
 export async function flushPendingEvents(
   store: PendingEventStore,
   send: (events: PendingEvent[]) => Promise<void>,

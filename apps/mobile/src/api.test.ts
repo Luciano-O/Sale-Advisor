@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { fetchCatalog, updateBroadPreferences } from "./api";
+import { fetchCatalog, fetchStores, updateBroadPreferences } from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -32,5 +32,14 @@ describe("fetchCatalog", () => {
     await expect(fetchCatalog()).resolves.toEqual([
       { category: "GPU", vendor: "NVIDIA", model: "RTX 5060" }
     ]);
+  });
+});
+
+describe("fetchStores", () => {
+  it("lists the stores that can be blocked", async () => {
+    const fetchMock = stubFetch({ items: [{ name: "Pichau", domain: "pichau.com.br" }] });
+
+    await expect(fetchStores()).resolves.toEqual([{ name: "Pichau", domain: "pichau.com.br" }]);
+    expect((fetchMock.mock.calls[0] as unknown as [string])[0]).toContain("/v1/stores");
   });
 });
