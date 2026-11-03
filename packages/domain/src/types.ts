@@ -41,6 +41,11 @@ export interface NormalizedStore {
   storeProductIdSource: StoreProductIdSource;
 }
 
+export interface StoreIdentity {
+  domain: string;
+  name: string;
+}
+
 export interface StoreAdapter {
   name: string;
   domain: string;

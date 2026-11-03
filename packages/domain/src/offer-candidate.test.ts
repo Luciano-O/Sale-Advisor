@@ -21,6 +21,31 @@ describe("buildOfferCandidate", () => {
     expect(candidate.sourceUrls).toContain("https://aoferta.net/abc");
   });
 
+  it("finds no store when the link lands on an affiliate tool, keeping the URLs for audit", () => {
+    const candidate = buildOfferCandidate({
+      rawText: "RTX 5060 Ti 16GB por R$ 3699 https://aoferta.net/003vyUsR-Terabyte",
+      capturedAt: "2026-08-18T12:00:00.000Z",
+      resolvedUrl: "https://aceleraafiliado.com/"
+    });
+    expect(candidate).toMatchObject({
+      store: null,
+      domain: null,
+      storeProductId: null,
+      sourceUrl: "https://aceleraafiliado.com/"
+    });
+    expect(candidate.sourceUrls).toContain("https://aoferta.net/003vyUsR-Terabyte");
+  });
+
+  it("files a link on a store's subdomain under the store", () => {
+    const candidate = buildOfferCandidate({
+      rawText: "RTX 5060 8GB por R$ 2.989 no Pix",
+      capturedAt: "2026-10-10T12:00:00.000Z",
+      resolvedUrl: "https://live.shopee.com.br/universal-link/share?from=live&session=7405350"
+    });
+    expect(candidate.domain).toBe("shopee.com.br");
+    expect(candidate.store?.domain).toBe("shopee.com.br");
+  });
+
   it("does not consolidate a shortener domain when resolution failed", () => {
     const candidate = buildOfferCandidate({
       rawText: "RTX 4060 por R$ 1.899 https://meli.la/failure",

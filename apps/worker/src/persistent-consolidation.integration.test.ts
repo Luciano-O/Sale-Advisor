@@ -84,4 +84,13 @@ describe.runIf(integration)("persistent offer consolidation", () => {
     `;
     expect(offers[0]).toEqual({ storeProductId: "123456", mentionCount: 2 });
   });
+
+  it("files the offer under the store's readable name", async () => {
+    const stores = await database.client<{ domain: string; name: string }[]>`
+      select s.domain, s.name from offers o join stores s on s.id = o.store_id
+      join offer_mentions om on om.offer_id = o.id where om.raw_message_id = ${withIdMessageId}
+    `;
+
+    expect(stores[0]).toEqual({ domain: "kabum.com.br", name: "KaBuM!" });
+  });
 });

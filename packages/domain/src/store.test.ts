@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeStore } from "./store.js";
+import { identifyStore, isNonStoreDomain, normalizeStore } from "./store.js";
 import { normalizeUrl } from "./url.js";
 
 describe("normalizeStore", () => {
@@ -157,6 +157,72 @@ describe("normalizeStore", () => {
 
     expect(store.storeProductId).toBeNull();
     expect(store.storeProductIdSource).toBe("none");
+  });
+
+  it("counts a link on a store's subdomain as that store", () => {
+    expect(
+      normalizeStore({
+        normalizedUrl: requiredUrl(
+          "https://live.shopee.com.br/universal-link/share?from=live&session=6062562"
+        )
+      })
+    ).toMatchObject({ domain: "shopee.com.br", adapterName: "shopee" });
+    expect(
+      normalizeStore({
+        normalizedUrl: requiredUrl("https://produto.mercadolivre.com.br/MLB-1234567890-gpu-_JM")
+      })
+    ).toMatchObject({ domain: "mercadolivre.com.br", storeProductId: "MLB1234567890" });
+  });
+});
+
+describe("identifyStore", () => {
+  it.each([
+    ["amazon.com.br", "Amazon"],
+    ["mercadolivre.com.br", "Mercado Livre"],
+    ["shopee.com.br", "Shopee"],
+    ["kabum.com.br", "KaBuM!"],
+    ["terabyteshop.com.br", "Terabyte"],
+    ["pichau.com.br", "Pichau"],
+    ["magazineluiza.com.br", "Magazine Luiza"],
+    ["aliexpress.com", "AliExpress"],
+    ["patoloco.com.br", "Pato Loco"]
+  ])("names %s for people to read", (domain, name) => {
+    expect(identifyStore(domain)).toEqual({ domain, name });
+  });
+
+  it.each([
+    ["live.shopee.com.br", "shopee.com.br", "Shopee"],
+    ["m.aliexpress.com", "aliexpress.com", "AliExpress"],
+    ["produto.mercadolivre.com.br", "mercadolivre.com.br", "Mercado Livre"],
+    ["WWW.KABUM.COM.BR", "kabum.com.br", "KaBuM!"]
+  ])("treats %s as the store itself", (input, domain, name) => {
+    expect(identifyStore(input)).toEqual({ domain, name });
+  });
+
+  it("keeps the domain as the name of a store it does not know", () => {
+    expect(identifyStore("www.loja-nova.example.br")).toEqual({
+      domain: "loja-nova.example.br",
+      name: "loja-nova.example.br"
+    });
+  });
+
+  it.each(["notkabum.com.br", "kabum.com.br.example.test", "kabum.com"])(
+    "does not mistake %s for a known store",
+    (domain) => {
+      expect(identifyStore(domain)).toEqual({ domain, name: domain });
+    }
+  );
+});
+
+describe("isNonStoreDomain", () => {
+  it("recognizes the affiliate tool that dead offer links land on", () => {
+    expect(isNonStoreDomain("aceleraafiliado.com")).toBe(true);
+    expect(isNonStoreDomain("www.aceleraafiliado.com")).toBe(true);
+  });
+
+  it("accepts stores, known or not", () => {
+    expect(isNonStoreDomain("kabum.com.br")).toBe(false);
+    expect(isNonStoreDomain("loja-nova.example.br")).toBe(false);
   });
 });
 

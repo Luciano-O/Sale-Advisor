@@ -1,7 +1,7 @@
 import { identifyGpuProduct } from "./gpu.js";
 import { calculatePriceBucket } from "./price-bucket.js";
 import { parsePriceQuotes, selectEffectivePrice } from "./price.js";
-import { normalizeStore, normalizeStoreDomain } from "./store.js";
+import { isNonStoreDomain, normalizeStore, normalizeStoreDomain } from "./store.js";
 import type { BuildOfferCandidateInput, OfferCandidate } from "./types.js";
 import { extractHttpUrls, normalizeUrl, selectPrimaryOfferUrl } from "./url.js";
 
@@ -30,8 +30,9 @@ export function buildOfferCandidate(input: BuildOfferCandidateInput): OfferCandi
     : null;
   const normalizedUrl = sourceUrl ? normalizeUrl(sourceUrl) : null;
   const storeDomain = input.storeDomain ? normalizeStoreDomain(input.storeDomain) : undefined;
+  const linkedDomain = normalizedUrl?.domain ?? storeDomain;
   const store =
-    normalizedUrl || storeDomain
+    linkedDomain && !isNonStoreDomain(linkedDomain)
       ? normalizeStore({ normalizedUrl, ...(storeDomain ? { storeDomain } : {}) })
       : null;
   const domain = store?.domain ?? null;

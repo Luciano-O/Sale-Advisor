@@ -1,4 +1,25 @@
-import type { NormalizedStore, NormalizeStoreInput, StoreProductIdSource } from "./types.js";
+import type {
+  NormalizedStore,
+  NormalizeStoreInput,
+  StoreIdentity,
+  StoreProductIdSource
+} from "./types.js";
+
+// Mirrored by the 0005_store_identity migration, which names the stores that already exist.
+export const KNOWN_STORES: readonly StoreIdentity[] = [
+  { domain: "amazon.com.br", name: "Amazon" },
+  { domain: "mercadolivre.com.br", name: "Mercado Livre" },
+  { domain: "shopee.com.br", name: "Shopee" },
+  { domain: "kabum.com.br", name: "KaBuM!" },
+  { domain: "terabyteshop.com.br", name: "Terabyte" },
+  { domain: "pichau.com.br", name: "Pichau" },
+  { domain: "magazineluiza.com.br", name: "Magazine Luiza" },
+  { domain: "aliexpress.com", name: "AliExpress" },
+  { domain: "patoloco.com.br", name: "Pato Loco" }
+];
+
+// Dead affiliate links redirect here; nothing can be bought on these sites.
+const NON_STORE_DOMAINS = new Set(["aceleraafiliado.com"]);
 
 const GENERIC_QUERY_ID_PARAMS = ["sku", "productId", "produtoId", "itemId", "id"] as const;
 
@@ -65,7 +86,7 @@ const STORE_ADAPTERS: StoreAdapterDefinition[] = [
 ];
 
 export function normalizeStore(input: NormalizeStoreInput): NormalizedStore {
-  const domain = normalizeDomain(input.normalizedUrl?.domain ?? input.storeDomain ?? "");
+  const { domain } = identifyStore(input.normalizedUrl?.domain ?? input.storeDomain ?? "");
   const parsedUrl = input.normalizedUrl ? new URL(input.normalizedUrl.normalizedUrl) : null;
   const adapter = STORE_ADAPTERS.find((candidate) => candidate.matchesDomain(domain));
   const match = parsedUrl
@@ -78,6 +99,20 @@ export function normalizeStore(input: NormalizeStoreInput): NormalizedStore {
     storeProductId: match?.value ?? null,
     storeProductIdSource: match?.source ?? "none"
   };
+}
+
+/** A subdomain (live., m., produto.) is the store itself; an unknown store goes by its domain. */
+export function identifyStore(domain: string): StoreIdentity {
+  const normalized = normalizeDomain(domain);
+  return (
+    KNOWN_STORES.find(
+      (store) => normalized === store.domain || normalized.endsWith(`.${store.domain}`)
+    ) ?? { domain: normalized, name: normalized }
+  );
+}
+
+export function isNonStoreDomain(domain: string): boolean {
+  return NON_STORE_DOMAINS.has(normalizeDomain(domain));
 }
 
 function extractAmazonAsin(url: URL): StoreProductIdMatch | null {

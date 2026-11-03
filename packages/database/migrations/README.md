@@ -36,3 +36,14 @@ Migrations posteriores devem ser aditivas e documentar compatibilidade, impacto 
   reenviar registros já marcados como `sent`.
 - Rollback: reverter o código e manter a coluna `attempts`. Removê-la não é necessário nem seguro
   durante rollback operacional.
+
+## 0005_store_identity.sql
+
+- Compatibilidade: só altera dados, sem mudar o schema. Código anterior funciona com os nomes novos,
+  mas voltaria a criar lojas por subdomínio em ofertas novas.
+- Impacto: dá nome legível às lojas conhecidas, sem sobrescrever nome revisado; move as ofertas de
+  subdomínios (`live.shopee.com.br`, `m.aliexpress.com`) para a loja principal; bloqueia
+  `aceleraafiliado.com`, que não é loja. Mensagens, menções e ofertas são preservadas, e as linhas
+  antigas de subdomínio ficam na tabela, sem ofertas.
+- Rollback: reverter o código e manter os dados. O vínculo anterior de cada oferta pode ser refeito
+  pelo `normalized_url`, e o bloqueio pode ser desfeito no admin.
