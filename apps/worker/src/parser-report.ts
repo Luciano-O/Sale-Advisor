@@ -82,7 +82,7 @@ const HARDWARE_CATEGORIES: { key: HardwareCategoryKey; label: string; pattern: R
   {
     key: "GPU",
     label: "Placa de vídeo",
-    pattern: /\b(?:placa\s+de\s+v[ií]deo|geforce|(?:rtx|gtx|rx)\s*-?\s*\d{4})/i
+    pattern: /\b(?:placa\s+de\s+v[ií]deo|geforce|arc\s*[ab]\d{3}|(?:rtx|gtx|rx)\s*-?\s*\d{4})/i
   },
   {
     key: "CPU",
@@ -110,7 +110,7 @@ const HARDWARE_CATEGORIES: { key: HardwareCategoryKey; label: string; pattern: R
   {
     key: "MOBO",
     label: "Placa-mãe",
-    pattern: /\b(?:placa[\s-]*m[ãa]e|motherboard|[abhxz][3-9]\d0[em]?(?:-\w+)?\b)/i
+    pattern: /\b(?:placa[\s-]*m[ãa]e|motherboard|(?<!\barc\s*)[abhxz][3-9]\d0[em]?(?:-\w+)?\b)/i
   }
 ];
 

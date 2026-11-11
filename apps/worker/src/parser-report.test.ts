@@ -229,6 +229,12 @@ describe("buildParserReport category coverage", () => {
     ).toMatchObject({ GPU: 1, RAM: 0, STORAGE: 0 });
   });
 
+  it("counts Intel Arc cards as GPU, not as a motherboard chipset", () => {
+    expect(
+      totals(["Intel Arc B580 12GB R$ 1.899", "Placa de vídeo ASRock Arc B570 10GB R$ 1.499"])
+    ).toMatchObject({ GPU: 2, MOBO: 0 });
+  });
+
   it("does not take an unrelated 'fonte' or a TV's HD resolution as a component", () => {
     expect(
       totals(["Fonte: site oficial da loja", "Smart TV 32 HD R$ 899", "Cupom de frete grátis"])
