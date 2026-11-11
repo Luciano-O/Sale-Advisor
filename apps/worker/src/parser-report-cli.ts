@@ -9,6 +9,7 @@ import type { ParserReportMessage } from "./parser-report.js";
 interface MessageRow {
   sourceKind: string;
   status: string;
+  capturedAt: Date;
   text: string;
   parseStatus: string | null;
   productModel: string | null;
@@ -27,7 +28,7 @@ const connection = createDatabase();
 
 try {
   const rows = await connection.client<MessageRow[]>`
-    select s.kind as "sourceKind", rm.status, rm.text,
+    select s.kind as "sourceKind", rm.status, rm.captured_at as "capturedAt", rm.text,
       rp.status as "parseStatus",
       rp.candidate->'product'->>'model' as "productModel",
       jsonb_typeof(rp.candidate->'price') = 'object' as "hasPrice",
@@ -77,6 +78,7 @@ function toReportMessage(row: MessageRow): ParserReportMessage {
   return {
     sourceKind: row.sourceKind,
     status: row.status,
+    capturedAt: new Date(row.capturedAt).toISOString(),
     text: row.text,
     parse: row.parseStatus
       ? {
