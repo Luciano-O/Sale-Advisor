@@ -38,6 +38,10 @@ primeira issue é de medição.
 
 ## Decisões propostas (viram o ADR 0009 na issue HW-02)
 
+> Decididas em [ADR 0009](../adr/0009-multi-category-products.md). O ADR é a referência: ele ajusta
+> a tabela abaixo (prefixo de categoria nas chaves novas, item seguível por categoria, marca do
+> anúncio na oferta) e define compatibilidade, migração e rollback.
+
 1. **Produto canônico genérico.** `CanonicalProduct { id, category, brand, model, attributes }`.
    `attributes` é um objeto pequeno e tipado por categoria (VRAM, capacidade, frequência, potência).
    GPU continua com as mesmas chaves canônicas, para não perder histórico.

@@ -1,6 +1,6 @@
 # ADRs
 
-ADR mais recente: `0007-single-host-vps-deployment.md`.
+ADR mais recente: `0009-multi-category-products.md`.
 
 Architecture Decision Records do projeto.
 
