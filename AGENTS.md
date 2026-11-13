@@ -10,6 +10,9 @@ O objetivo do produto é permitir que o usuário indique intenção de compra po
 
 - Categoria inicial: hardware.
 - Produto inicial: placas de vídeo.
+- Expansão em andamento (ADR 0009, plano em `docs/roadmap/01-hardware-categories.md`):
+  processadores, memórias RAM, SSDs/HDs, fontes e placas-mãe. Cada categoria só aparece no app
+  depois de ativada.
 - Fonte inicial de ofertas: grupos e canais de promoções do Telegram.
 - App sem cadastro/login no MVP.
 - Preferências finas do usuário armazenadas localmente no aparelho.
@@ -149,27 +152,33 @@ Nunca deduplicar apenas pelo texto completo da mensagem.
 
 ## Produto Canônico E Normalização
 
-No MVP, usar taxonomia controlada para GPUs:
+Usar taxonomia controlada e determinística em todas as categorias. A lista de modelos fica no
+código de cada categoria em `packages/domain` (GPU em `gpu.ts`), não neste arquivo.
 
-```text
-NVIDIA
-- RTX 3060
-- RTX 4060
-- RTX 4060 Ti
-- RTX 4070
-- RTX 4070 Super
+O produto canônico é a unidade de comparação de preço: dois anúncios só entram no mesmo histórico se
+um comprador os consideraria o mesmo item. Granularidade por categoria (ADR 0009):
 
-AMD
-- RX 6600
-- RX 7600
-- RX 7700 XT
-- RX 7800 XT
-```
+| Categoria      | Chave     | Produto canônico                                      | Item seguível no app           |
+| -------------- | --------- | ----------------------------------------------------- | ------------------------------ |
+| Placa de vídeo | `GPU`     | fabricante do chip + modelo + VRAM                    | modelo                         |
+| Processador    | `CPU`     | marca + modelo exato; sufixos são modelos distintos   | modelo exato                   |
+| Memória RAM    | `RAM`     | geração + formato + capacidade + kit + frequência     | geração + formato + capacidade |
+| SSD / HD       | `STORAGE` | marca + linha + capacidade                            | linha + capacidade             |
+| Fonte          | `PSU`     | marca + linha + potência                              | linha + potência               |
+| Placa-mãe      | `MOBO`    | marca + modelo exato; chipset e soquete são atributos | chipset                        |
+
+- Chaves de GPU não mudam (`nvidia-rtx-5070-12gb`); categorias novas usam a chave da categoria como
+  prefixo (`cpu-amd-ryzen-5-5600`).
+- A marca de quem fabrica o item anunciado (ASUS numa RTX, Kingston num pente) é da oferta, não do
+  produto.
+- Uma mensagem tem um produto principal. Notebooks, PCs montados, consoles, kits de peças e
+  acessórios não viram oferta de componente. Kit de memória (2x8GB) é produto RAM.
+- O que não casar com a taxonomia fica sem produto e aparece no relatório do parser.
 
 Começar com regras determinísticas bem testadas:
 
 - chipset/modelo.
-- VRAM.
+- atributos da categoria (VRAM, capacidade, frequência, potência).
 - marca.
 - loja.
 - condição do produto, quando detectável.
